@@ -1,0 +1,21 @@
+diff -up bltk-1.0.9/tools/analyzer/bltk_plot.sh.plot bltk-1.0.9/tools/analyzer/bltk_plot.sh
+--- bltk-1.0.9/tools/analyzer/bltk_plot.sh.plot	2010-05-27 14:37:09.927581674 +0200
++++ bltk-1.0.9/tools/analyzer/bltk_plot.sh	2010-05-27 14:37:26.955313106 +0200
+@@ -78,7 +78,7 @@ set_bltk_paths()
+   return $RETCODE
+ }
+ 
+-set_bltk_root
++set_bltk_paths
+ 
+ BLTK_GET_STAT_CMD=$BLTK_BIN/bltk_get_stat
+ BLTK_CALC_CMD=$BLTK_BIN/bltk_calc
+@@ -88,7 +88,7 @@ BLTK_PLOT_TMP=$BLTK_TMP/bltk_plot.$$
+ ARGS_FILE=$BLTK_PLOT_TMP/bltk_plot.cmd
+ ARGS_FILE_SAVED=$BLTK_PLOT_TMP/bltk_plot.cmd.saved
+ 
+-OPTIONS="hDd:f:swx:yX:Y:t:o:12:vp:nR"
++OPTIONS="hDd:f:swx:y:X:Y:t:o:12:vp:nR"
+ 
+ command_line()
+ {

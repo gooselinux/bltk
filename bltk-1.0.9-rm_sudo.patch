@@ -1,0 +1,712 @@
+diff -up bltk-1.0.9/include/bltk.h.sec_sudo bltk-1.0.9/include/bltk.h
+--- bltk-1.0.9/include/bltk.h.sec_sudo	2009-07-29 11:38:48.000000000 +0200
++++ bltk-1.0.9/include/bltk.h	2009-12-08 14:28:23.868162165 +0100
+@@ -429,8 +429,6 @@ extern int dpms_proc_flg;
+ 
+ extern char *results;
+ 
+-extern char *bltk_sudo;
+-
+ extern int abort_flg;
+ extern int ac_ignore;
+ 
+diff -up bltk-1.0.9/Makefile.sec_sudo bltk-1.0.9/Makefile
+--- bltk-1.0.9/Makefile.sec_sudo	2009-07-29 11:38:48.000000000 +0200
++++ bltk-1.0.9/Makefile	2009-12-08 14:28:23.868162165 +0100
+@@ -89,10 +89,6 @@ clean : FORCE
+ 	@$(RM) *~ last_cmd last_results history
+ 	@$(RM) .bltk install.log uninstall.log .plot_history
+ 
+-su : pre-install
+-	$(MAKE) -C tools/sudo install
+-	@touch .bltk
+-
+ _lazy : FORCE
+ 	@for f in $(CMDS); \
+ 	do \
+diff -up bltk-1.0.9/tools/analyzer/bltk_report.sh.sec_sudo bltk-1.0.9/tools/analyzer/bltk_report.sh
+diff -up bltk-1.0.9/tools/bat_drain/bat_drain.sh.sec_sudo bltk-1.0.9/tools/bat_drain/bat_drain.sh
+--- bltk-1.0.9/tools/bat_drain/bat_drain.sh.sec_sudo	2009-07-29 11:38:48.000000000 +0200
++++ bltk-1.0.9/tools/bat_drain/bat_drain.sh	2009-12-10 13:55:46.454371019 +0100
+@@ -100,16 +100,12 @@ set_bltk_root()
+ set_bltk_root
+ 
+ export BLTK_BIN=$BLTK_ROOT/bin
+-export BLTK_SUDO=$BLTK_BIN/bltk_sudo
+ export BLTK_GET_DMIDECODE=$BLTK_BIN/bltk_get_dmidecode
+ export BLTK_GET_SYSTEM_RELEASE=$BLTK_BIN/bltk_get_system_release
+ 
+-if [[ -x $BLTK_SUDO ]]
+-then
+-	MANUFACTURER=`$BLTK_SUDO $BLTK_GET_DMIDECODE -m`
+-	PRODUCT_NAME=`$BLTK_SUDO $BLTK_GET_DMIDECODE -p`
+-	SYSTEM_RELEASE=`$BLTK_GET_SYSTEM_RELEASE -v`
+-fi
++MANUFACTURER=`cat /sys/devices/virtual/dmi/id/sys_vendor`
++PRODUCT_NAME=`cat /sys/devices/virtual/dmi/id/product_name`
++SYSTEM_RELEASE=`$BLTK_GET_SYSTEM_RELEASE -v`
+ 
+ # percents
+ BAT_CRITICAL=5
+@@ -1874,16 +1870,6 @@ fini_user()
+ 	$fini_user_cmd
+ }
+ 
+-bat_startup()
+-{
+-	if [[ -x $BLTK_SUDO ]]
+-	then
+-		$BLTK_SUDO modprobe cpufreq_stats >/dev/null 2>&1
+-	fi
+-}
+-
+-bat_startup
+-
+ init_srgs "$@"
+ 
+ if [[ $left_work_flg = TRUE ]]
+diff -up bltk-1.0.9/tools/bltk/bltk_check.sh.sec_sudo bltk-1.0.9/tools/bltk/bltk_check.sh
+--- bltk-1.0.9/tools/bltk/bltk_check.sh.sec_sudo	2009-12-08 14:28:23.846162271 +0100
++++ bltk-1.0.9/tools/bltk/bltk_check.sh	2009-12-08 14:28:23.876162742 +0100
+@@ -85,14 +85,6 @@ command_line()
+ cmd_startup
+ [[ $? != 0 ]] && exit 1
+ 
+-$BLTK_SUDO_CMD
+-if [[ $? != 0 ]]
+-then
+-	echo "Cannot run $BLTK_SUDO_CMD"
+-	echo "Please perform 'make su' command"
+-	exit 2
+-fi
+-
+ command_line "$@"
+ 
+ #rm -rf $RES
+diff -up bltk-1.0.9/tools/bltk/bltk_get_dmidecode.sh.sec_sudo bltk-1.0.9/tools/bltk/bltk_get_dmidecode.sh
+--- bltk-1.0.9/tools/bltk/bltk_get_dmidecode.sh.sec_sudo	2009-12-08 14:28:23.825191233 +0100
++++ bltk-1.0.9/tools/bltk/bltk_get_dmidecode.sh	2009-12-08 14:28:23.877162125 +0100
+@@ -74,65 +74,13 @@ command_line()
+ 	done
+ 
+ 	shift $((OPTIND-1))
+-
+-	DMIDECODE=$*
+-	TMP_FILE=$BLTK_HOME/tmp/dmidecode
+-
+-	if [[ -z $DMIDECODE ]]
+-	then
+-		type -p dmidecode >/dev/null 2>&1
+-		if [[ $? = 0 ]]
+-		then
+-			rm -f $TMP_FILE
+-			$BLTK_SUDO_CMD dmidecode >$TMP_FILE
+-			DMIDECODE=$TMP_FILE
+-		else
+-			if [[ $manufacturer_flg = TRUE ]]
+-			then
+-				:
+-			elif [[ $product_name_flg = TRUE ]]
+-			then
+-				:
+-			else
+-				echo "MANUFACTURER ="
+-				echo "PRODUCT_NAME ="
+-			fi
+-			exit 1
+-		fi
+-	fi
+-
+-	MANUFACTURER=
+-	PRODUCT_NAME=
+ }
+ 
+ command_line "$@"
+ 
+-while read line
+-do
+-	if [[ "$line" == *"System Information"* ]]
+-	then
+-		read line_m
+-		read line_p
+-		break
+-	fi
+-done < $DMIDECODE
+-
+-
+-if [[ ! -z "$line_m" ]]
+-then
+-	if [[ "$line_m" == *"Manufacturer: "* ]]
+-	then
+-		MANUFACTURER=${line_m#Manufacturer: }
+-	fi
+-fi
++MANUFACTURER=`cat /sys/devices/virtual/dmi/id/sys_vendor`
+ 
+-if [[ ! -z "$line_p" ]]
+-then
+-	if [[ "$line_p" == *"Product Name: "* ]]
+-	then
+-		PRODUCT_NAME=${line_p#Product Name: }
+-	fi
+-fi
++PRODUCT_NAME=`cat /sys/devices/virtual/dmi/id/product_name`
+ 
+ if [[ $manufacturer_flg = TRUE ]]
+ then
+@@ -145,6 +93,4 @@ else
+ 	echo "PRODUCT_NAME = $PRODUCT_NAME"
+ fi
+ 
+-rm -f $TMP_FILE
+-
+ exit 0
+diff -up bltk-1.0.9/tools/bltk/bltk_get_hdparm.sh.sec_sudo bltk-1.0.9/tools/bltk/bltk_get_hdparm.sh
+--- bltk-1.0.9/tools/bltk/bltk_get_hdparm.sh.sec_sudo	2009-12-08 14:28:23.817162439 +0100
++++ bltk-1.0.9/tools/bltk/bltk_get_hdparm.sh	2009-12-10 15:55:25.035367622 +0100
+@@ -56,7 +56,12 @@ warning()
+ 
+ PARTITIONS=$1
+ 
++FOUND=0
++READING=0
+ TMP_FILE=$BLTK_HOME/tmp/hdparm
++DEV_INFO=$BLTK_HOME/tmp/dev_info
++
++/usr/bin/udisks --dump > $TMP_FILE
+ 
+ str=`ls -d /sys/block/sd* | sed 's/^.*sd/sd/'`
+ DF_NAME=${str%% *}
+@@ -70,30 +75,40 @@ fi
+ 
+ HD_DEV_NAME=/dev/$HD_NAME
+ 
++while read line
++do
++  if [[ $READING -eq 0 && `echo $line | grep '^Showing'` ]]; then
++    READING=1
++  elif [[ $READING -eq 1 && `echo $line | grep =====` ]]; then
++    READING=0
++    if [ $FOUND -eq 1 ]; then
++      break;
++    else
++      rm $DEV_INFO
++    fi
++  fi
++
++  if [[ $READING -eq 1 ]]; then  
++    echo $line >> $DEV_INFO
++  fi
++
++  if [[ `echo $line | grep "device-file: *$HD_DEV_NAME"` ]]; then 
++    FOUND=1
++  fi
++done < $TMP_FILE
++
+ rm -f $TMP_FILE
+-$BLTK_SUDO_CMD hdparm -iI "$HD_DEV_NAME" >$TMP_FILE 2>&1
+ 
+ echo "DF_NAME = $DF_NAME"
+ echo "DF_DEV_NAME = $DF_DEV_NAME"
+ echo "HD_NAME = $HD_NAME"
+ echo "HD_DEV_NAME = $HD_DEV_NAME"
+ 
+-str=`grep '^ Model=' $TMP_FILE`
+-str=${str# Model=}
+-str=${str%%, *}
+-if [[ -z "$str" ]]
+-then
+-	str=`grep '^	Model Number:' $TMP_FILE`
+-	str=${str#*Model Number:}
+-	str=`echo $str`
+-fi
+-echo "HD_MODEL = $str"
++echo "HD_MODEL = `grep '^model:' $DEV_INFO | sed 's/^model: //'`"
+ 
+-str=`grep 'device size with M = 1000' $TMP_FILE`
+-str=${str#*device size with M = 1000*:}
+-str=`echo $str`
+-echo "HD_SIZE = $str"
++str=`grep '^size:' $DEV_INFO | sed 's/^size: //'`
++echo "HD_SIZE = $((str/1000000)) MBytes ($((str/1000000000)) GB)"
+ 
+-rm -f $TMP_FILE
++rm $DEV_INFO
+ 
+ exit 0
+diff -up bltk-1.0.9/tools/bltk/bltk_get_user_field.sh.sec_sudo bltk-1.0.9/tools/bltk/bltk_get_user_field.sh
+--- bltk-1.0.9/tools/bltk/bltk_get_user_field.sh.sec_sudo	2009-12-08 14:28:23.826177205 +0100
++++ bltk-1.0.9/tools/bltk/bltk_get_user_field.sh	2009-12-10 15:58:45.697370853 +0100
+@@ -57,7 +57,12 @@ warning()
+ FIELD_NO=$1
+ DELIM=$1
+ 
++FOUND=0
++READING=0
+ TMP_FILE=$BLTK_HOME/tmp/hdparm
++DEV_INFO=$BLTK_HOME/tmp/dev_info
++
++/usr/bin/udisks --dump > $TMP_FILE
+ 
+ #str=`df -lk / | grep -v ^Filesystem`
+ str=`df -lk / | grep ^/dev/`
+@@ -74,30 +79,40 @@ fi
+ 
+ HD_DEV_NAME=/dev/$HD_NAME
+ 
++while read line
++do
++  if [[ $READING -eq 0 && `echo $line | grep '^Showing'` ]]; then
++    READING=1
++  elif [[ $READING -eq 1 && `echo $line | grep =====` ]]; then
++    READING=0
++    if [ $FOUND -eq 1 ]; then
++      break;
++    else
++      rm $DEV_INFO
++    fi
++  fi
++
++  if [[ $READING -eq 1 ]]; then  
++    echo $line >> $DEV_INFO
++  fi
++
++  if [[ `echo $line | grep "device-file: *$HD_DEV_NAME"` ]]; then 
++    FOUND=1
++  fi
++done < $TMP_FILE
++
+ rm -f $TMP_FILE
+-$BLTK_SUDO_CMD /sbin/hdparm -iI "$HD_DEV_NAME" >$TMP_FILE 2>&1
+ 
+ echo "DF_NAME = $DF_NAME"
+ echo "DF_DEV_NAME = $DF_DEV_NAME"
+ echo "HD_NAME = $HD_NAME"
+ echo "HD_DEV_NAME = $HD_DEV_NAME"
+ 
+-str=`grep '^ Model=' $TMP_FILE`
+-str=${str# Model=}
+-str=${str%%, *}
+-if [[ -z "$str" ]]
+-then
+-	str=`grep '^	Model Number:' $TMP_FILE`
+-	str=${str#*Model Number:}
+-	str=`echo $str`
+-fi
+-echo "HD_MODEL = $str"
++echo "HD_MODEL = `grep '^model:' $DEV_INFO | sed 's/^model: //'`"
+ 
+-str=`grep 'device size with M = 1000' $TMP_FILE`
+-str=${str#*device size with M = 1000*:}
+-str=`echo $str`
+-echo "HD_SIZE = $str"
++str=`grep '^size:' $DEV_INFO | sed 's/^size: //'`
++echo "HD_SIZE = $((str/1000000)) MBytes ($((str/1000000000)) GB)"
+ 
+-rm -f $TMP_FILE
++rm $DEV_INFO
+ 
+ exit 0
+diff -up bltk-1.0.9/tools/bltk/bltk_hd_state.sh.sec_sudo bltk-1.0.9/tools/bltk/bltk_hd_state.sh
+diff -up bltk-1.0.9/tools/bltk/bltk_install.sh.sec_sudo bltk-1.0.9/tools/bltk/bltk_install.sh
+--- bltk-1.0.9/tools/bltk/bltk_install.sh.sec_sudo	2009-07-29 11:38:48.000000000 +0200
++++ bltk-1.0.9/tools/bltk/bltk_install.sh	2009-12-08 14:28:23.879167455 +0100
+@@ -100,18 +100,6 @@ done
+ cd $BLTK_ROOT
+ [[ $? != 0 ]] && exit 1
+ 
+-$BLTK_SUDO_CMD >/dev/null 2>&1
+-if [[ $? != 0 ]]
+-then
+-	SU=TRUE
+-fi
+-
+-if [[ $SU = TRUE ]]
+-then
+-	make su
+-	[[ $? != 0 ]] && exit 1
+-fi
+-
+ CWD=$PWD
+ 
+ for work in $WORK
+diff -up bltk-1.0.9/tools/bltk/bltk_save_sys_info.sh.sec_sudo bltk-1.0.9/tools/bltk/bltk_save_sys_info.sh
+--- bltk-1.0.9/tools/bltk/bltk_save_sys_info.sh.sec_sudo	2009-07-29 11:38:48.000000000 +0200
++++ bltk-1.0.9/tools/bltk/bltk_save_sys_info.sh	2009-12-08 14:28:23.880163066 +0100
+@@ -48,13 +48,6 @@ group=`id -gn`
+ 
+ trap 'trap_action 1; exit 1' 1 2 3 6 15
+ #trap 'echo trap 11 >&2' 11
+-trap_action()
+-{
+-	[[ ! -a "$SAVEDIR" ]] && return
+-	$BLTK_SUDO_CMD chown -h -R $user:$group $SAVEDIR
+-	$BLTK_SUDO_CMD chmod -R a+rw $SAVEDIR
+-	$BLTK_SUDO_CMD rm -rf $SAVEDIR
+-}
+ 
+ PROG=$0
+ 
+@@ -102,10 +95,7 @@ SAVELIST="
+ 
+ if [[ -a $SAVEDIR ]]
+ then
+-	CMD="$BLTK_SUDO_CMD chmod -R a+rw $SAVEDIR"
+-	$CMD
+-	[[ $? != 0 ]] && error "$CMD failed"
+-	CMD="$BLTK_SUDO_CMD rm -rf $SAVEDIR"
++	CMD="rm -rf $SAVEDIR"
+ 	$CMD
+ 	[[ $? != 0 ]] && error "$CMD failed"
+ fi
+@@ -122,13 +112,13 @@ do
+ 	CMD="mkdir -p -m 0777 $dstdir"
+ 	$CMD
+ 	[[ $? != 0 ]] && error "$CMD failed"
+-	CMD="$BLTK_SUDO_CMD cp -d -r $src $dst"
++	CMD="cp -d -r $src $dst"
+ 	$CMD
+ 	[[ $? != 0 ]] && warning "$CMD failed"
+-	CMD="$BLTK_SUDO_CMD chown -h -R $user:$group $dst"
++	CMD="chown -h -R $user:$group $dst"
+ 	$CMD
+ 	[[ $? != 0 ]] && warning "$CMD failed"
+-	CMD="$BLTK_SUDO_CMD chmod -R a+rw $dst"
++	CMD="chmod -R a+rw $dst"
+ 	$CMD
+ 	[[ $? != 0 ]] && warning "$CMD failed"
+ done >>$SAVEDIR/err.log 2>&1
+@@ -144,21 +134,9 @@ free >$SAVEDIR/free 2>&1
+ df -lk >$SAVEDIR/df 2>&1
+ ps -lef >$SAVEDIR/ps 2>&1
+ ###	glxinfo >$SAVEDIR/glxinfo 2>&1
+-$BLTK_SUDO_CMD dmidecode >$SAVEDIR/dmidecode 2>&1
+ xset q >$SAVEDIR/xset 2>&1
+ 
+ HDPARM=hdparm
+ 
+-for h in hda hdb hdc hdd sda sdb sdc sdd
+-do
+-	grep " $h " /proc/diskstats >/dev/null 2>&1
+-	if [[ $? = 0 ]]
+-	then
+-		$BLTK_SUDO_CMD $HDPARM /dev/$h >$SAVEDIR/hdparm.$h 2>&1
+-		$BLTK_SUDO_CMD $HDPARM -iI /dev/$h >>$SAVEDIR/hdparm.$h 2>&1
+-		$BLTK_SUDO_CMD $HDPARM -C /dev/$h >>$SAVEDIR/hdparm.$h 2>&1
+-	fi
+-done
+-
+ exit 0
+ 
+diff -up bltk-1.0.9/tools/bltk/bltk_wl_common.sh.sec_sudo bltk-1.0.9/tools/bltk/bltk_wl_common.sh
+--- bltk-1.0.9/tools/bltk/bltk_wl_common.sh.sec_sudo	2009-12-08 14:28:23.847162491 +0100
++++ bltk-1.0.9/tools/bltk/bltk_wl_common.sh	2009-12-08 14:28:23.881171389 +0100
+@@ -133,7 +133,6 @@ cmd_startup()
+ 	export BLTK_LIB=$BLTK_ROOT/lib
+ 	export BLTK_TMP=$HOME/.bltk/tmp
+ 
+-	[[ -z $BLTK_SUDO_CMD ]] && export BLTK_SUDO_CMD=$BLTK_BIN/bltk_sudo
+ 	[[ -z $BLTK_CALC_CMD ]] && export BLTK_CALC_CMD=$BLTK_BIN/bltk_calc
+ 	[[ -z $BLTK_TIME_CMD ]] && export BLTK_TIME_CMD=$BLTK_BIN/bltk_time
+ 	[[ -z $BLTK_TYPE_COMMAND_CMD ]] && export BLTK_TYPE_COMMAND_CMD=$BLTK_BIN/bltk_type_command
+@@ -211,7 +210,6 @@ wl_startup()
+ 
+ 	export BLTK_WL_INSTALL_FILE=$BLTK_WL_ROOT/.installed
+ 
+-	[[ -z $BLTK_SUDO_CMD ]] && export BLTK_SUDO_CMD=$BLTK_BIN/bltk_sudo
+ 	[[ -z $BLTK_CALC_CMD ]] && export BLTK_CALC_CMD=$BLTK_BIN/bltk_calc
+ 	[[ -z $BLTK_TIME_CMD ]] && export BLTK_TIME_CMD=$BLTK_BIN/bltk_time
+ 	[[ -z $BLTK_TYPE_COMMAND_CMD ]] && export BLTK_TYPE_COMMAND_CMD=$BLTK_BIN/bltk_type_command
+@@ -540,27 +538,6 @@ wl_remove_dir()
+ 	return 0
+ }
+ 
+-wl_remove_dir_su()
+-{
+-	typeset	dir=$1
+-
+-	if [[ -a $dir ]]
+-	then
+-		CMD="$BLTK_SUDO_CMD rm -rf $dir"
+-		$CMD
+-		if [[ $? != 0 ]]
+-		then
+-			wl_error_msg "$CMD failed"
+-			wl_error_msg "Cannot remove $dir"
+-			return 1
+-		fi
+-	fi
+-#	CMD="rmdir -p `dirname $dir`"
+-#	$CMD >/dev/null 2>&1
+-#	return 0
+-	return 0
+-}
+-
+ wl_move_dir()
+ {
+ 	typeset	dir1=$1
+diff -up bltk-1.0.9/tools/bltk/main.c.sec_sudo bltk-1.0.9/tools/bltk/main.c
+--- bltk-1.0.9/tools/bltk/main.c.sec_sudo	2009-12-08 14:28:23.852162407 +0100
++++ bltk-1.0.9/tools/bltk/main.c	2009-12-08 14:28:23.883191456 +0100
+@@ -215,8 +215,6 @@ int stat_system = 0;
+ int comment_cnt = 0;
+ char *comment[MAX_LINES];
+ 
+-char *bltk_sudo = "bltk_sudo_NOT_SET";
+-
+ char stop_fname[STR_LEN];
+ 
+ int show_demo = 0;
+@@ -250,7 +248,6 @@ int debug_workload_flg = 0;
+ 
+ int start_prog_flg = 0;
+ char *start_prog = NULL;
+-int start_prog_su_flg = 0;
+ 
+ xtime_t arg_time = EMPTY_VALUE;
+ xtime_t idle_test_time = EMPTY_VALUE;
+@@ -946,15 +943,6 @@ static void start_warning2(void)
+ 	write_to_stdout_work_out_log("Do NOT touch anything\n");
+ }
+ 
+-static void pre_init_vars(void)
+-{
+-	char cmd[STR_LEN];
+-
+-	(void)sprintf(cmd, "%s modprobe cpufreq_stats >>%s 2>&1",
+-		      bltk_sudo, warning_log_fname);
+-	(void)prog_system(cmd);
+-}
+-
+ static int environment_init(int argc, char **argv)
+ {
+ 	char cmdline[STR_LEN];
+@@ -1056,26 +1044,6 @@ static int environment_init(int argc, ch
+ 	(void)sprintf(cmd, "%s >%s/cmd", cmdline, results);
+ 	(void)prog_system(cmd);
+ 
+-	(void)sprintf(str, "%s/bin/bltk_sudo", bltk_root);
+-	bltk_sudo = strdup(str);
+-	if (access(str, X_OK) != 0) {
+-		(void)sprintf(prt_str, "Cannot access %s\n", str);
+-		write_to_err_log(prt_str);
+-		(void)sprintf(prt_str, "Please perform 'make su' command\n");
+-		write_to_err_log(prt_str);
+-		prog_exit(1);
+-	}
+-	(void)sprintf(cmd, "%s/bin/bltk_sudo", bltk_root);
+-	ret = prog_system(cmd);
+-	if (ret != 0) {
+-		(void)sprintf(prt_str, "Cannot run %s\n", str);
+-		write_to_err_log(prt_str);
+-		(void)sprintf(prt_str, "Please perform 'make su' command\n");
+-		write_to_err_log(prt_str);
+-		prog_exit(1);
+-	}
+-	prog_putenv("BLTK_SUDO_CMD", str);
+-
+ 	set_signal(SIGTERM);
+ 	set_signal(SIGINT);
+ 	set_signal(SIGQUIT);
+@@ -1092,8 +1060,6 @@ static int environment_init(int argc, ch
+ 		prog_exit(1);
+ 	}
+ 
+-	pre_init_vars();
+-
+ 	init_vars();
+ 
+ 	return (0);
+@@ -2021,11 +1987,6 @@ int main(int argc, char **argv)
+ 		case 'e':
+ 			start_prog_flg = 1;
+ 			start_prog = optarg;
+-			start_prog_su_flg = 1;
+-			break;
+-		case 'E':
+-			start_prog_flg = 1;
+-			start_prog = optarg;
+ 			break;
+ 		case 'y':
+ 			yes = 1;
+@@ -2449,11 +2410,7 @@ int main(int argc, char **argv)
+ 	}
+ 
+ 	if (start_prog_flg) {
+-		if (start_prog_su_flg) {
+-			(void)sprintf(cmd, "%s '%s'", bltk_sudo, start_prog);
+-		} else {
+-			(void)sprintf(cmd, "%s", start_prog);
+-		}
++		(void)sprintf(cmd, "%s", start_prog);
+ 		(void)sprintf(prt_str, "Start prog %s\n", cmd);
+ 		write_to_stdout_work_out_log(prt_str);
+ 		ret = prog_system(cmd);
+diff -up bltk-1.0.9/tools/bltk/Makefile.sec_sudo bltk-1.0.9/tools/bltk/Makefile
+--- bltk-1.0.9/tools/bltk/Makefile.sec_sudo	2009-12-08 14:28:23.806162596 +0100
++++ bltk-1.0.9/tools/bltk/Makefile	2009-12-08 14:28:23.875173697 +0100
+@@ -14,7 +14,7 @@ HIDERS		= ../../include/bltk.h ../../inc
+ TARGETS		= $(BIN)/bltk
+ 
+ SHFILES		= \
+-		bltk_hd_state bltk_save_sys_info bltk_get_info \
++		bltk_save_sys_info bltk_get_info \
+ 		bltk_get_ac_adapter bltk_get_bat bltk_get_cpustat \
+ 		bltk_get_cpufreq bltk_get_cpuinfo bltk_get_cpustate \
+ 		bltk_get_dmidecode bltk_get_hdparm \
+diff -up bltk-1.0.9/tools/bltk/stat.c.sec_sudo bltk-1.0.9/tools/bltk/stat.c
+--- bltk-1.0.9/tools/bltk/stat.c.sec_sudo	2009-07-29 11:38:48.000000000 +0200
++++ bltk-1.0.9/tools/bltk/stat.c	2009-12-08 14:28:23.886191838 +0100
+@@ -205,24 +205,6 @@ void turn_off_stat_memory(void)
+ 	}
+ }
+ 
+-#define	LAPTOP_MODE	"laptop_mode"
+-
+-static int laptop_mode_stop_done = 0;
+-
+-void laptop_mode_stop(void)
+-{
+-	char cmd[STR_LEN];
+-
+-	if (!stat_log_proc_flg || laptop_mode_stop_done) {
+-		return;
+-	}
+-
+-	laptop_mode_stop_done = 1;
+-	debug("laptop_mode_stop()");
+-	(void)sprintf(cmd, "%s %s >/dev/null 2>&1", bltk_sudo, LAPTOP_MODE);
+-	(void)prog_system(cmd);
+-}
+-
+ void stat_sync(char *why)
+ {
+ 	debug("stat_sync() by %s", why);
+@@ -320,7 +302,6 @@ void check_critical_state(void)
+ 				if (stat_memory_saved) {
+ 					send_sighup();
+ 				}
+-				laptop_mode_stop();
+ 				if (!idle_test_mode) {
+ 					save_sys_info_2();
+ 				}
+@@ -438,34 +419,6 @@ get_percentage_delta(ll_t val_100, ll_t 
+ 	return (ret);
+ }
+ 
+-void hd_state(char *str)
+-{
+-	char cmd[STR_LEN];
+-	int ret;
+-
+-	if (hd_stat_ignore) {
+-		(void)sprintf(str, "  -");
+-		return;
+-	}
+-
+-	(void)sprintf(cmd, "./bin/bltk_hd_state %s >>%s 2>&1",
+-		      hd_dev_name, "/dev/null");
+-
+-	ret = prog_system(cmd);
+-	ret = WEXITSTATUS(ret);
+-	if (ret == 100) {
+-		(void)sprintf(str, "err");
+-	} else if (ret == 101) {
+-		(void)sprintf(str, "a/i");
+-	} else if (ret == 102) {
+-		(void)sprintf(str, " st");
+-	} else if (ret == 103) {
+-		(void)sprintf(str, " sl");
+-	} else {
+-		(void)sprintf(str, "err");
+-	}
+-}
+-
+ static int get_display_state(void)
+ {
+ 	char cmd[STR_LEN];
+@@ -1129,7 +1082,7 @@ void write_report_str(char *work_type, c
+ 	if (hd_stat_ignore == 0) {
+ 		int del_rd = 0, del_wr = 0;
+ 
+-		hd_state(shd);
++		sprintf(shd, "a/i");
+ 
+ 		if (hd_stat_rd_wr_ignore == 0) {
+ 			get_hd_stat(1, &c_hd_stat);
+diff -up bltk-1.0.9/tools/Makefile.sec_sudo bltk-1.0.9/tools/Makefile
+--- bltk-1.0.9/tools/Makefile.sec_sudo	2009-07-29 11:38:48.000000000 +0200
++++ bltk-1.0.9/tools/Makefile	2009-12-08 14:28:23.869162456 +0100
+@@ -1,5 +1,5 @@
+ 
+-SUBDIRS = xse bltk sudo get_realpath type_command analyzer time bat_drain
++SUBDIRS = xse bltk get_realpath type_command analyzer time bat_drain
+ 
+ all : FORCE
+ 	@for dir in $(SUBDIRS); \
+@@ -19,8 +19,5 @@ install :
+ 
+ uninstall :
+ 
+-su sudo : FORCE
+-	$(MAKE) -C sudo
+-
+ FORCE :
+ 
+diff -up bltk-1.0.9/tools/sudo/bltk_sudo.c.sec_sudo bltk-1.0.9/tools/sudo/bltk_sudo.c
+diff -up bltk-1.0.9/tools/sudo/Makefile.sec_sudo bltk-1.0.9/tools/sudo/Makefile
+diff -up bltk-1.0.9/wl_game/bltk_wl_game.sh.sec_sudo bltk-1.0.9/wl_game/bltk_wl_game.sh
+--- bltk-1.0.9/wl_game/bltk_wl_game.sh.sec_sudo	2009-12-08 14:28:23.797167456 +0100
++++ bltk-1.0.9/wl_game/bltk_wl_game.sh	2009-12-08 14:28:23.887196668 +0100
+@@ -81,7 +81,7 @@ clean_gmhome()
+ {
+ 	if [[ -d $GMHOME ]]
+ 	then
+-		CMD="$BLTK_SUDO_CMD rm -rf $GMHOME"
++		CMD="rm -rf $GMHOME"
+ 		$CMD
+ 		wl_check_error $? "$CMD failed"
+ 	fi
+diff -up bltk-1.0.9/wl_player/bltk_wl_player.sh.sec_sudo bltk-1.0.9/wl_player/bltk_wl_player.sh
+--- bltk-1.0.9/wl_player/bltk_wl_player.sh.sec_sudo	2009-12-08 14:28:23.821177150 +0100
++++ bltk-1.0.9/wl_player/bltk_wl_player.sh	2009-12-08 14:28:23.888191092 +0100
+@@ -95,27 +95,6 @@ startup()
+ ###	env | sort >env.log
+ }
+ 
+-set_dvd_config()
+-{
+-	typeset dvd
+-
+-	for d in /dev/cdrom /dev/hdc /dev/hdd /dev/sr0
+-	do
+-		if [[ -a $d ]]
+-		then
+-			dvd=$d
+-			break
+-		fi
+-	done
+-
+-	if [[ ! -a /dev/dvd && ! -z $dvd ]]
+-	then
+-		$BLTK_SUDO_CMD ln -s $dvd /dev/dvd
+-		$BLTK_SUDO_CMD chmod a+r /dev/dvd
+-		$BLTK_SUDO_CMD hdparm -d1 /dev/dvd
+-	fi
+-}
+-
+ run1()
+ {
+ 	ST_TIME=`$BLTK_TIME_CMD`
+diff -up bltk-1.0.9/wl_reader/bltk_wl_reader.sh.sec_sudo bltk-1.0.9/wl_reader/bltk_wl_reader.sh
+--- bltk-1.0.9/wl_reader/bltk_wl_reader.sh.sec_sudo	2009-12-08 14:28:23.841162495 +0100
++++ bltk-1.0.9/wl_reader/bltk_wl_reader.sh	2009-12-08 14:28:23.889162188 +0100
+@@ -103,7 +103,7 @@ startup()
+ 	fi
+ 	if [[ $default_flg = TRUE ]]
+ 	then
+-		CMD="$BLTK_SUDO_CMD rm -f $tmp_reader_file"
++		CMD="rm -f $tmp_reader_file"
+ 		$CMD
+ 		wl_check_error $? "$CMD fialed"
+ 

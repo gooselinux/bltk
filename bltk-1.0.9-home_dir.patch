@@ -1,0 +1,44 @@
+--- orig-1.0.9/tools/bltk/bltk_get_dmidecode.sh	2009-04-10 09:14:20.000000000 +0200
++++ curr-1.0.9-1/tools/bltk/bltk_get_dmidecode.sh	2009-07-17 11:03:54.741146665 +0200
+@@ -76,7 +76,7 @@
+ 	shift $((OPTIND-1))
+ 
+ 	DMIDECODE=$*
+-	TMP_FILE=$BLTK_ROOT/tmp/dmidecode
++	TMP_FILE=$BLTK_HOME/tmp/dmidecode
+ 
+ 	if [[ -z $DMIDECODE ]]
+ 	then
+--- orig-1.0.9/tools/bltk/bltk_get_lspci.sh	2009-04-10 09:14:20.000000000 +0200
++++ curr-1.0.9-1/tools/bltk/bltk_get_lspci.sh	2009-07-17 11:03:54.739159007 +0200
+@@ -56,7 +56,7 @@
+ 	echo "$PROG: Warning: $*" >&2
+ }
+ 
+-TMP_FILE=$BLTK_ROOT/tmp/lspci
++TMP_FILE=$BLTK_HOME/tmp/lspci
+ 
+ if [[ -z $LSPCI ]]
+ then
+--- orig-1.0.9/tools/bltk/bltk_get_user_field.sh	2009-04-10 09:14:20.000000000 +0200
++++ curr-1.0.9-1/tools/bltk/bltk_get_user_field.sh	2009-07-17 11:03:54.789920943 +0200
+@@ -57,7 +57,7 @@
+ FIELD_NO=$1
+ DELIM=$1
+ 
+-TMP_FILE=$BLTK_ROOT/tmp/hdparm
++TMP_FILE=$BLTK_HOME/tmp/hdparm
+ 
+ #str=`df -lk / | grep -v ^Filesystem`
+ str=`df -lk / | grep ^/dev/`
+--- orig-1.0.9/tools/bltk/bltk_get_xdpyinfo.sh	2009-04-10 09:14:20.000000000 +0200
++++ curr-1.0.9-1/tools/bltk/bltk_get_xdpyinfo.sh	2009-07-17 11:03:54.764879831 +0200
+@@ -42,7 +42,7 @@
+ unalias -a
+ 
+ XDPYINFO=$1
+-TMP_FILE=$BLTK_ROOT/tmp/xdpyinfo
++TMP_FILE=$BLTK_HOME/tmp/xdpyinfo
+ 
+ if [[ -z $XDPYINFO ]]
+ then

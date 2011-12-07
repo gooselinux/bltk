@@ -1,0 +1,19 @@
+--- orig-1.0.9/tools/bltk/bltk_get_hdparm.sh	2009-04-10 09:14:20.000000000 +0200
++++ curr-1.0.9/tools/bltk/bltk_get_hdparm.sh	2009-07-13 10:04:45.469891458 +0200
+@@ -56,13 +56,10 @@
+ 
+ PARTITIONS=$1
+ 
+-TMP_FILE=$BLTK_ROOT/tmp/hdparm
+-
+-#str=`df -lk / | grep -v ^Filesystem`
+-str=`df -lk / | grep ^/dev/`
+-DF_DEV_NAME=${str%% *}
+-DF_NAME=${DF_DEV_NAME#/dev/}
++TMP_FILE=$BLTK_HOME/tmp/hdparm
+ 
++str=`ls -d /sys/block/sd* | sed 's/^.*sd/sd/'`
++DF_NAME=${str%% *}
+ HD_NAME=${DF_NAME%%[0-9]*}
+ 
+ grep -w "$HD_NAME" "$PARTITIONS" >/dev/null 2>&1

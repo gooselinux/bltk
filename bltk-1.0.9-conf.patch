@@ -1,0 +1,514 @@
+diff -up /dev/null bltk/include/parseconf.h
+--- /dev/null	2009-07-29 07:53:51.640007938 +0200
++++ bltk/include/parseconf.h	2009-07-29 11:14:00.913495946 +0200
+@@ -0,0 +1,61 @@
++/*
++ *  Copyright (c) 2009 Red Hat Inc.
++ *  Copyright (c) 2009 Jiri Skala <jskala@redhat.com>
++ *  All rights reserved.
++ *
++ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++ *
++ *  Redistribution and use in source and binary forms, with or without
++ *  modification, are permitted provided that the following conditions
++ *  are met:
++ *
++ *    Redistributions of source code must retain the above copyright notice,
++ *    this list of conditions and the following disclaimer.
++ *
++ *    Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ *
++ *    Neither the name of Intel Corporation nor the names of its contributors
++ *    may be used to endorse or promote products derived from this software
++ *    without specific prior written permission.
++ *
++ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
++ *  TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
++ *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
++ *  AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
++ *  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
++ *  THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
++ *  DAMAGE.
++ *
++ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++ */
++
++#ifndef __PARSECONF_H__
++#define __PARSECONF_H__
++
++extern char *bltk_home;
++extern char *soffice_prog;
++extern char *wl_office_working_dir;
++extern char *bltk_player_prog;
++extern char *bltk_player_file;
++extern char *bltk_reader_prog;
++
++extern int wl_developer_enabled;
++extern int wl_developer_extern;
++extern int wl_game_enabled;
++extern int wl_game_extern;
++extern int wl_office_enabled;
++extern int wl_office_extern;
++extern int wl_player_enabled;
++extern int wl_player_extern;
++extern int wl_reader_enabled;
++extern int wl_reader_extern;
++
++#endif
++
+diff -up bltk/tools/bltk/main.c.conf bltk/tools/bltk/main.c
+--- bltk/tools/bltk/main.c.conf	2009-04-10 09:14:20.000000000 +0200
++++ bltk/tools/bltk/main.c	2009-07-29 11:15:27.694746739 +0200
+@@ -57,6 +57,7 @@
+ #include <ctype.h>
+ 
+ #include "bltk.h"
++#include "parseconf.h"
+ 
+ #define	OUTPUT_CONSOLE		10
+ #define	OUTPUT_FILE		20
+@@ -960,12 +961,13 @@ static int environment_init(int argc, ch
+ 	char str[STR_LEN];
+ 	int ret, i;
+ 
+-	(void)unlink(LAST_RESULTS);
+-	ret = symlink(results, LAST_RESULTS);
++	sprintf(str, "%s/%s", bltk_home, LAST_RESULTS);
++	(void)unlink(str);
++	ret = symlink(results, str);
+ 	if (ret != 0) {
+ 		(void)sprintf(prt_str, "symlink(%s, %s) failed, "
+ 			      "errno %d (%s)\n",
+-			      results, LAST_RESULTS, errno, strerror(errno));
++			      results, str, errno, strerror(errno));
+ 		write_to_err_log(prt_str);
+ 		prog_exit(1);
+ 	}
+@@ -987,6 +989,7 @@ static int environment_init(int argc, ch
+ 	(void)sprintf(fail_fname, "%s/fail", results);
+ 	(void)sprintf(pass_fname, "%s/pass", results);
+ 	prog_putenv("BLTK_FAIL_FNAME", fail_fname);
++	prog_putenv("BLTK_STOP_FNAME", stop_fname);
+ 	prog_putenv("BLTK_PASS_FNAME", pass_fname);
+ 
+ 	(void)sprintf(err_log_fname, "%s/err.log", results);
+@@ -1041,10 +1044,12 @@ static int environment_init(int argc, ch
+ 	}
+ 	(void)strcat(cmdline, "'");
+ 
+-	(void)sprintf(cmd, "%s >>history", cmdline);
++	sprintf(str, "%s/%s", bltk_home, HISTORY);
++	(void)sprintf(cmd, "%s >>%s", cmdline, str);
+ 	(void)prog_system(cmd);
+ 
+-	(void)sprintf(cmd, "%s >last_cmd", cmdline);
++	sprintf(str, "%s/%s", bltk_home, LAST_CMD);
++	(void)sprintf(cmd, "%s >%s", cmdline, str);
+ 	(void)prog_system(cmd);
+ 
+ 	(void)sprintf(cmd, "%s >%s/cmd", cmdline, results);
+@@ -1078,7 +1083,7 @@ static int environment_init(int argc, ch
+ 	set_signal(SIGUSR2);
+ 	set_signal(SIGHUP);
+ 
+-	(void)sprintf(cmd, "mkdir -p -m 0777 %s/tmp", bltk_root);
++	(void)sprintf(cmd, "mkdir -p -m 0777 %s/tmp", bltk_home);
+ 	ret = prog_system(cmd);
+ 	if (ret != 0) {
+ 		(void)sprintf(prt_str, "%s failed\n", cmd);
+@@ -1608,6 +1613,28 @@ static char *get_bltk_root_by_argv0(char
+ 	return (wp1);
+ }
+ 
++static char *get_bltk_root_by_proc()
++{
++	char str[256], *path, *ret=NULL;
++
++	snprintf(str, sizeof str, "/proc/%d/exe", getpid());
++	if (readlink(str, str, sizeof str) > -1)
++	{
++		if ((path = dirname(str)))
++		{
++			// take one folder higher
++			ret = strrchr(path, '/');
++			if (ret != NULL)
++			{
++				*ret = 0;
++				ret = path;
++			}
++		}
++	}
++
++	return ret ? strdup(ret) : ret;
++}
++
+ static char *get_bltk_root_by_path(char *argv0)
+ {
+ 	char *path, *dpath, *res;
+@@ -1648,7 +1675,7 @@ static void set_bltk_root(char *argv0)
+ 	int ret;
+ 	char cwd[STR_LEN];
+ 
+-	wp1 = check_bltk_root(".");
++	wp1 = get_bltk_root_by_proc();
+ 	if (wp1 == NULL) {
+ 		wp1 = get_bltk_root_by_argv0(argv0);
+ 	}
+@@ -1792,6 +1819,12 @@ int main(int argc, char **argv)
+ 	(void)umask(0);
+ 	(void)set_path(0);
+ 
++	param_init();
++
++	prog_putenv("BLTK_HOME", bltk_home);
++	prog_putenv("WL_OFFICE_WORKING_DIR", wl_office_working_dir);
++	prog_putenv("WL_READER_WORKING_DIR", wl_office_working_dir);
++
+ 	time_start = time_prev = prog_time();
+ 
+ 	(void)prog_system("xset dpms 0 0 0 >/dev/null 2>&1");
+@@ -2125,7 +2158,7 @@ int main(int argc, char **argv)
+ 			    ("getcwd() failed, cannot continue the test\n");
+ 			prog_exit(1);
+ 		}
+-		(void)sprintf(results_str, "%s/%s", results_parent, results);
++		(void)sprintf(results_str, "%s/%s", bltk_home, results);
+ 		results = results_str;
+ 	}
+ 
+diff -up bltk/tools/bltk/Makefile.conf bltk/tools/bltk/Makefile
+--- bltk/tools/bltk/Makefile.conf	2009-04-10 09:14:20.000000000 +0200
++++ bltk/tools/bltk/Makefile	2009-07-29 11:14:00.917495009 +0200
+@@ -4,12 +4,12 @@ CFLAGS		= -Wall -pedantic -std=c99 -g -O
+ 
+ BIN		= ../../bin
+ 
+-FILES		= main init file stat
++FILES		= main init file stat parseconf
+ 
+ OFILES		= ${FILES:=.o}
+ CFILES		= ${FILES:=.c}
+ 
+-HIDERS		= ../../include/bltk.h
++HIDERS		= ../../include/bltk.h ../../include/parseconf.h
+ 
+ TARGETS		= $(BIN)/bltk
+ 
+@@ -38,6 +38,7 @@ main.o : $(HIDERS) main.c
+ init.o : $(HIDERS) init.c
+ file.o : $(HIDERS) file.c
+ stat.o : $(HIDERS) stat.c
++parseconf.o : $(HIDERS) parseconf.c
+ 
+ $(SHTARGETS) : $(SHFILES_SH)
+ 	cp $(@:$(BIN)/%=%.sh) $@
+diff -up /dev/null bltk/tools/bltk/parseconf.c
+--- /dev/null	2009-07-29 07:53:51.640007938 +0200
++++ bltk/tools/bltk/parseconf.c	2009-07-29 11:14:00.921494700 +0200
+@@ -0,0 +1,299 @@
++/*
++ *  Copyright (c) 2009 Red Hat Inc.
++ *  Copyright (c) 2009 Jiri Skala <jskala@redhat.com>
++ *  All rights reserved.
++ *
++ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++ *
++ *  Redistribution and use in source and binary forms, with or without
++ *  modification, are permitted provided that the following conditions
++ *  are met:
++ *
++ *    Redistributions of source code must retain the above copyright notice,
++ *    this list of conditions and the following disclaimer.
++ *
++ *    Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ *
++ *    Neither the name of Intel Corporation nor the names of its contributors
++ *    may be used to endorse or promote products derived from this software
++ *    without specific prior written permission.
++ *
++ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
++ *  TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
++ *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
++ *  AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
++ *  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
++ *  THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
++ *  DAMAGE.
++ *
++ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++ */
++
++#include <stdio.h>
++#include <string.h>
++#include <unistd.h>
++#include <stdlib.h>
++#include <errno.h>
++#include <ctype.h>
++#include <sys/stat.h>
++#include <sys/types.h>
++
++#include "bltk.h"
++
++#define BLTK_CONF                   "/etc/bltk.conf"
++
++typedef struct para_item_str_t
++{
++	const char *name;
++	char **val;
++	size_t len;
++} para_item_str;
++
++typedef struct para_item_int_t
++{
++	const char *name;
++	int *val;
++} para_item_int;
++
++typedef struct para_item_bool_t
++{
++	const char *name;
++	int *val;
++} para_item_bool;
++
++char *bltk_home;
++char *soffice_prog;
++char *wl_office_working_dir;
++char *bltk_player_prog;
++char *bltk_player_file;
++char *bltk_reader_prog;
++char *bltk_reader_file;
++
++int wl_developer_enabled;
++int wl_developer_extern;
++int wl_game_enabled;
++int wl_game_extern;
++int wl_office_enabled;
++int wl_office_extern;
++int wl_player_enabled;
++int wl_player_extern;
++int wl_reader_enabled;
++int wl_reader_extern;
++
++static para_item_str params_str[] =
++{
++	{ "BLTK_HOME", &bltk_home, 0 },
++	{ "SOFFICE_PROG", &soffice_prog, 0 },
++	{ "WL_OFFICE_WORKING_DIR", &wl_office_working_dir, 0 },
++	{ "BLTK_PLAYER_PROG", &bltk_player_prog, 0 },
++	{ "BLTK_PLAYER_FILE", &bltk_player_file, 0 },
++	{ "BLTK_READER_PROG", &bltk_reader_prog, 0 },
++	{ "BLTK_READER_FILE", &bltk_reader_file, 0 },
++  { NULL, NULL, 0 }
++};
++
++static para_item_int params_int[] =
++{
++  { NULL, 0 }
++};
++
++static para_item_bool params_bool[] =
++{
++	{ "WL_DEVELOPER_ENABLED", &wl_developer_enabled },
++	{ "WL_DEVELOPER_EXTERN", &wl_developer_extern },
++	{ "WL_GAME_ENABLED", &wl_game_enabled },
++	{ "WL_GAME_EXTERN", &wl_game_extern },
++	{ "WL_OFFICE_ENABLED", &wl_office_enabled },
++	{ "WL_OFFICE_EXTERN", &wl_office_extern },
++	{ "WL_PLAYER_ENABLED", &wl_player_enabled },
++	{ "WL_PLAYER_EXTERN", &wl_player_extern },
++	{ "WL_READER_ENABLED", &wl_reader_enabled },
++	{ "WL_READER_EXTERN", &wl_reader_extern },
++  { NULL, 0 }
++};
++
++
++char *
++strupper(char *str)
++{
++  int i;
++  for (i=0; i < strlen(str); i++)
++    str[i] = (char)toupper(str[i]);
++  return str;
++}
++
++int
++param_find_str(const char *name)
++{
++  int i;
++  for (i=0;
++    params_str[i].name != NULL && strcmp(name, params_str[i].name) != 0;
++    i++) ;
++  return params_str[i].name == NULL ? -1 : i;
++}
++
++int
++param_find_int(const char *name)
++{
++  int i;
++  for (i=0;
++    params_int[i].name != NULL && strcmp(name, params_int[i].name) != 0;
++    i++) ;
++  return params_int[i].name == NULL ? -1 : i;
++}
++
++int
++param_find_bool(const char *name)
++{
++  int i;
++  for (i=0;
++    params_bool[i].name != NULL && strcmp(name, params_bool[i].name) != 0;
++    i++) ;
++  return params_bool[i].name == NULL ? -1 : i;
++}
++
++int
++line_empty_or_spaces(const char *line)
++{
++  int i;
++  for (i=0; line[i] > 0 && line[i] <= ' ' && i < strlen(line); i++) ;
++  return line[i] == 0;
++}
++
++int
++line_commented(const char *line)
++{
++  int i;
++  for (i=0; line[i] > 0 && line[i] <= ' ' && i < strlen(line); i++) ;
++  return line[i] == '#';
++}
++
++int
++param_parse_line(const char *line, char *name, char *val)
++{
++  char *str, *str1;
++  int ret=-1;
++
++  str = strdup(line);
++  if ((str1 = strchr(str, '=')) != NULL)
++  {
++    *str1 = 0;
++    str1++;
++    strcpy(val, str1);
++    strcpy(name, str);
++    ret = 0;
++  }
++  else
++  {
++    fprintf(stderr, "Incorrect line in the %s\n", BLTK_CONF);
++  } 
++  free (str);
++  return ret;
++}
++
++void
++param_export_value(const char *name)
++{
++	char expval[STR_LEN];
++  int index;
++
++  if ((index = param_find_str(name)) > -1)
++	  snprintf(expval, STR_LEN, "%s=%s", name, *(params_str[index].val));
++  else if ((index = param_find_int(name)) > -1)
++	  snprintf(expval, STR_LEN, "%s=%d", name, *(params_int[index].val));
++  else if ((index = param_find_bool(name)) > -1)
++	  snprintf(expval, STR_LEN, "%s=%s", name, *(params_bool[index].val) ? "YES": "NO");
++
++  if (index > -1)
++    putenv(strdup(expval));
++  else
++    fprintf(stderr, "Undefined parameter (%s)\n", name);
++}
++
++void
++param_load_conf()
++{
++  char str[STR_LEN];
++  char name[STR_LEN], val[STR_LEN];
++  int index, len;
++	FILE *f;
++
++  if ((f = fopen(BLTK_CONF, "rt")) != NULL)
++  {
++    while (fgets(str, STR_LEN, f) != NULL)
++    {
++      if ((len = strlen(str)) > 0 && str[len-1] == '\n')
++        str[len-1] = 0;
++      if (line_empty_or_spaces(str) || line_commented(str))
++        continue;
++
++      param_parse_line(str, name, val);
++
++      if ((index = param_find_str(name)) > -1)
++        *(params_str[index].val) = strdup(val);
++      else if ((index = param_find_int(name)) > -1)
++        *(params_int[index].val) = atoi(val);
++      else if ((index = param_find_bool(name)) > -1)
++      {
++        if (!strcmp(strupper(val), "YES") ||
++            !strcmp(strupper(val), "TRUE") ||
++            val[0] == '1')
++          *(params_bool[index].val) = 1;
++        else if (!strcmp(strupper(val), "NO") ||
++            !strcmp(strupper(val), "FALSE") ||
++            val[0] == '0')
++          *(params_bool[index].val) = 0;
++      }
++    }
++
++    fclose(f);
++  }
++}
++
++void
++param_load_defaults()
++{
++  char str[STR_LEN];
++
++  if (bltk_home == NULL)
++  {
++    sprintf(str, "%s/.bltk", getenv("HOME"));
++    bltk_home = strdup(str);
++  } else if (bltk_home[0] == '~') {
++    sprintf(str, "%s%s", getenv("HOME"), bltk_home+1);
++    free(bltk_home);
++    bltk_home = strdup(str);
++  }
++
++  if (access(bltk_home, 0) != 0)
++    mkdir(bltk_home, 0700);
++
++  if (wl_office_working_dir == NULL)
++    wl_office_working_dir = strdup(bltk_home);
++
++  if (access(wl_office_working_dir, 0) != 0)
++  {
++    if (wl_office_working_dir[0] == '~')
++    {
++      sprintf(str, "%s%s", getenv("HOME"), wl_office_working_dir+1);
++      free(wl_office_working_dir);
++      wl_office_working_dir = strdup(str);
++    }
++    mkdir(wl_office_working_dir, 0700);
++  }
++}
++
++void
++param_init()
++{
++  param_load_conf();
++  param_load_defaults();
++}
++

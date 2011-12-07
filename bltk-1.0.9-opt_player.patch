@@ -1,0 +1,122 @@
+--- orig-1.0.9/wl_player/bltk_wl_player_make_binary.sh	2009-04-10 09:14:20.000000000 +0200
++++ curr-1.0.9-1/wl_player/bltk_wl_player_make_binary.sh	2009-07-17 11:03:55.178141070 +0200
+@@ -108,9 +108,13 @@
+ 	return 0
+ }
+ 
+-{
+-startup
+-make_mplayer_bin
+-cleanup 0
+-}
+-
++if [[ "$WL_PLAYER_ENABLED" = "YES" && "$WL_PLAYER_EXTERN" = "YES" ]]
++then
++	{
++	startup
++	make_mplayer_bin
++	cleanup 0
++	}
++else
++	exit 0
++fi
+--- orig-1.0.9/wl_player/bltk_wl_player.sh	2009-04-10 09:14:20.000000000 +0200
++++ curr-1.0.9-1/wl_player/bltk_wl_player.sh	2009-07-17 11:03:55.189691473 +0200
+@@ -38,6 +38,9 @@
+ # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ #
+ 
++BLTK_PLAYER_PROG_FLG=
++
++[ -f "$BLTK_CONF" ] && . "$BLTK_CONF"
+ 
+ source `dirname $0`/../../bin/bltk_wl_common
+ [[ $? != 0 ]] && { echo "bltk tree corrupted"; exit 2; }
+@@ -54,27 +57,22 @@
+ 	wl_check_install player
+ 	wl_check_error $?
+ 
+-	if [[ $BLTK_WL_FILE = DEBUG ]]
++	if [[ $BLTK_PLAYER_FILE = DEBUG ]]
+ 	then
+-		BLTK_WL_FILE=
++		BLTK_PLAYER_FILE=
+ 	fi
+-	if [ $PLAY_MD != "dvd://" -a $PLAY_MD != "vcd://" ]
++	if [[ -z $BLTK_PLAYER_FILE ]]
+ 	then
+-		BLTK_WL_FILE=$BLTK_EXTERN_SRC_WL_PLAYER/$PLAY_MD
+-	else 
+-		set_dvd_config
+-		BLTK_WL_FILE=$PLAY_MD
++		BLTK_PLAYER_FILE="dvd://"
+ 	fi
+ 
+-echo ALEX DEBUG BLTK_WL_FILE is $BLTK_WL_FILE 
+-
+-	if [[ -z $BLTK_WL_PROG ]]
+-	then
+-		BLTK_WL_PROG=$BLTK_EXTERN_TGT_WL_PLAYER/mplayer/bin/mplayer
+-	fi
+-	if [[ -z $BLTK_WL_PROG_FLG ]]
++	if [[ -z $BLTK_PLAYER_PROG ]]
+ 	then
+-		BLTK_WL_PROG_FLG="-fs -quiet"
++		BLTK_PLAYER_PROG=$BLTK_EXTERN_TGT_WL_PLAYER/mplayer/bin/mplayer
++		if [[ -z $BLTK_PLAYER_PROG_FLG ]]
++		then
++			BLTK_PLAYER_PROG_FLG="-fs -quiet"
++		fi
+ 	fi
+ 
+ 	if [[ -z $BLTK_SHOW_DEMO_NUM ]]
+@@ -86,13 +84,13 @@
+ 		export BLTK_SHOW_DEMO_TIME=60
+ 	fi
+ 
+-	wl_check_prog $BLTK_WL_PROG
++	wl_check_prog $BLTK_PLAYER_PROG
+ 	wl_check_error $?
+ 
+-	wl_check_run_prog $BLTK_WL_PROG
++	wl_check_run_prog $BLTK_PLAYER_PROG
+ 	wl_check_error $?
+ 
+-	wl_check_all_run_prog $BLTK_WL_PROG
++	wl_check_all_run_prog $BLTK_PLAYER_PROG
+ 	wl_check_error $?
+ ###	env | sort >env.log
+ }
+@@ -122,14 +120,14 @@
+ {
+ 	ST_TIME=`$BLTK_TIME_CMD`
+ 
+-	CMD="$BLTK_WL_PROG $BLTK_WL_PROG_FLG $BLTK_WL_FILE"
++	CMD="$BLTK_PLAYER_PROG $BLTK_WL_PROG_FLG $BLTK_PLAYER_FILE"
+ 	if [[ $BLTK_SHOW_DEMO = TRUE && $BLTK_SHOW_DEMO_TIME != 0 ]]
+ 	then
+ 		$CMD &
+ 		wl_check_error $? "CMD failed"
+ 		pid=$!
+ 		sleep $BLTK_SHOW_DEMO_TIME
+-		prog=`basename $BLTK_WL_PROG`
++		prog=`basename $BLTK_PLAYER_PROG`
+ 		pgrep $prog
+ 		wl_check_error $? "$prog is not running"
+ 		/bin/kill -QUIT $pid >/dev/null 2>&1
+@@ -180,7 +178,12 @@
+ 	exit $1
+ }
+ 
+-startup
+-run
+-cleanup 0
++if [ "$WL_PLAYER_ENABLED" = "YES" ]
++then
++	startup
++	run
++	cleanup 0
++else
++	exit 0
++fi
+ 

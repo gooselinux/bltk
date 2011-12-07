@@ -1,0 +1,477 @@
+--- orig-1.0.9/tools/analyzer/bltk_plot.sh	2009-04-10 09:14:20.000000000 +0200
++++ curr-1.0.9-1/tools/analyzer/bltk_plot.sh	2009-07-17 11:03:54.822883564 +0200
+@@ -41,23 +41,41 @@
+ 
+ unalias -a
+ 
+-set_bltk_root()
++set_bltk_paths()
+ {
+-	PROG=`basename $0`
++  WHICH_BLTK=`which bltk`
++  RETCODE=$?
+ 
+-	BLTK_ROOT=`dirname $0`
+-	if [[ ! -a $BLTK_ROOT/.bltk ]]
+-	then
+-		BLTK_ROOT=`dirname $BLTK_ROOT`
+-		if [[ ! -a $BLTK_ROOT/.bltk ]]
+-		then
+-			echo "Cannot determine bltk root, bltk tree corrupted."
+-			exit 2
+-		fi
+-	fi
+-	export BLTK_ROOT
+-	export BLTK_BIN=$BLTK_ROOT/bin
+-	export BLTK_TMP=$BLTK_ROOT/tmp
++  if [[ $RETCODE = 0 ]]
++  then
++    file -b $WHICH_BLTK | grep symbolic > /dev/null
++    TMPCODE=$?
++    if [[ $TMPCODE = 0 ]]
++    then
++      BLTK_MAIN=`readlink -f $WHICH_BLTK`
++    else
++      BLTK_MAIN=$WHICH_BLTK
++    fi
++    BLTK_ROOT=`echo $BLTK_MAIN | sed 's|/bin/.*$||'`
++
++    root_len=`echo $BLTK_ROOT | wc -c`
++    main_len=`echo $BLTK_MAIN | wc -c`
++    
++    if [[ $root_len = $main_len ]]
++    then
++      RETCODE=2
++    else
++      [ -f "$BLTK_CONF" ] && . "$BLTK_CONF"
++
++      [ -z $BLTK_HOME ] && BLTK_HOME=~/.bltk
++
++      export BLTK_ROOT
++      export BLTK_BIN=$BLTK_ROOT/bin
++      export BLTK_TMP=$BLTK_HOME/tmp
++    fi
++  fi
++
++  return $RETCODE
+ }
+ 
+ set_bltk_root
+--- orig-1.0.9/tools/analyzer/bltk_report_check.sh	2009-04-10 09:14:20.000000000 +0200
++++ curr-1.0.9-1/tools/analyzer/bltk_report_check.sh	2009-07-17 11:03:54.824880651 +0200
+@@ -41,26 +41,44 @@
+ 
+ unalias -a
+ 
+-set_bltk_root()
++set_bltk_paths()
+ {
+-	PROG=`basename $0`
++  WHICH_BLTK=`which bltk`
++  RETCODE=$?
+ 
+-	BLTK_ROOT=`dirname $0`
+-	if [[ ! -a $BLTK_ROOT/.bltk ]]
+-	then
+-		BLTK_ROOT=`dirname $BLTK_ROOT`
+-		if [[ ! -a $BLTK_ROOT/.bltk ]]
+-		then
+-			echo "Cannot determine bltk root, bltk tree corrupted."
+-			exit 2
+-		fi
+-	fi
+-	export BLTK_ROOT
+-	export BLTK_BIN=$BLTK_ROOT/bin
+-	export BLTK_TMP=$BLTK_ROOT/tmp
++  if [[ $RETCODE = 0 ]]
++  then
++    file -b $WHICH_BLTK | grep symbolic > /dev/null
++    TMPCODE=$?
++    if [[ $TMPCODE = 0 ]]
++    then
++      BLTK_MAIN=`readlink -f $WHICH_BLTK`
++    else
++      BLTK_MAIN=$WHICH_BLTK
++    fi
++    BLTK_ROOT=`echo $BLTK_MAIN | sed 's|/bin/.*$||'`
++
++    root_len=`echo $BLTK_ROOT | wc -c`
++    main_len=`echo $BLTK_MAIN | wc -c`
++    
++    if [[ $root_len = $main_len ]]
++    then
++      RETCODE=2
++    else
++      [ -f "$BLTK_CONF" ] && . "$BLTK_CONF"
++
++      [ -z $BLTK_HOME ] && BLTK_HOME=~/.bltk
++
++      export BLTK_ROOT
++      export BLTK_BIN=$BLTK_ROOT/bin
++      export BLTK_TMP=$BLTK_HOME/tmp
++    fi
++  fi
++
++  return $RETCODE
+ }
+ 
+-set_bltk_root
++set_bltk_paths
+ 
+ Failed="Failed !!!"
+ 
+--- orig-1.0.9/tools/analyzer/bltk_report_compress.sh	2009-04-10 09:14:20.000000000 +0200
++++ curr-1.0.9-1/tools/analyzer/bltk_report_compress.sh	2009-07-17 11:03:54.818881008 +0200
+@@ -41,27 +41,44 @@
+ 
+ unalias -a
+ 
+-set_bltk_root()
++set_bltk_paths()
+ {
+-	PROG=`basename $0`
++  WHICH_BLTK=`which bltk`
++  RETCODE=$?
+ 
+-	BLTK_ROOT=`dirname $0`
+-	if [[ ! -a $BLTK_ROOT/.bltk ]]
+-	then
+-		BLTK_ROOT=`dirname $BLTK_ROOT`
+-		if [[ ! -a $BLTK_ROOT/.bltk ]]
+-		then
+-			echo "Cannot determine bltk root, bltk tree corrupted."
+-			exit 2
+-		fi
+-	fi
+-	export BLTK_ROOT
+-	export BLTK_BIN=$BLTK_ROOT/bin
+-	export BLTK_TMP=$BLTK_ROOT/tmp
+-	export BLTK_GET_REALPATH=$BLTK_BIN/bltk_get_realpath
++  if [[ $RETCODE = 0 ]]
++  then
++    file -b $WHICH_BLTK | grep symbolic > /dev/null
++    TMPCODE=$?
++    if [[ $TMPCODE = 0 ]]
++    then
++      BLTK_MAIN=`readlink -f $WHICH_BLTK`
++    else
++      BLTK_MAIN=$WHICH_BLTK
++    fi
++    BLTK_ROOT=`echo $BLTK_MAIN | sed 's|/bin/.*$||'`
++
++    root_len=`echo $BLTK_ROOT | wc -c`
++    main_len=`echo $BLTK_MAIN | wc -c`
++    
++    if [[ $root_len = $main_len ]]
++    then
++      RETCODE=2
++    else
++      [ -f "$BLTK_CONF" ] && . "$BLTK_CONF"
++
++      [ -z $BLTK_HOME ] && BLTK_HOME=~/.bltk
++
++      export BLTK_ROOT
++      export BLTK_BIN=$BLTK_ROOT/bin
++      export BLTK_TMP=$BLTK_HOME/tmp
++    fi
++  fi
++
++  return $RETCODE
+ }
+ 
+-set_bltk_root
++set_bltk_paths
+ 
+ CWD=$PWD
+ 
+--- orig-1.0.9/tools/analyzer/bltk_report.sh	2009-04-10 09:14:20.000000000 +0200
++++ curr-1.0.9-1/tools/analyzer/bltk_report.sh	2009-07-17 11:03:54.820880959 +0200
+@@ -38,29 +38,51 @@
+ # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ #
+ 
+-
+ unalias -a
+ 
+-set_bltk_root()
++set_bltk_paths()
+ {
+-	PROG=`basename $0`
+-
+-	BLTK_ROOT=`dirname $0`
+-	if [[ ! -a $BLTK_ROOT/.bltk ]]
+-	then
+-		BLTK_ROOT=`dirname $BLTK_ROOT`
+-		if [[ ! -a $BLTK_ROOT/.bltk ]]
+-		then
+-			echo "Cannot determine bltk root, bltk tree corrupted."
+-			exit 2
+-		fi
+-	fi
+-	export BLTK_ROOT
+-	export BLTK_BIN=$BLTK_ROOT/bin
+-	export BLTK_TMP=$BLTK_ROOT/tmp
+-}
++  WHICH_BLTK=`which bltk`
++  RETCODE=$?
+ 
+-set_bltk_root
++  if [[ $RETCODE = 0 ]]
++  then
++    file -b $WHICH_BLTK | grep symbolic > /dev/null
++    TMPCODE=$?
++    if [[ $TMPCODE = 0 ]]
++    then
++      BLTK_MAIN=`readlink -f $WHICH_BLTK`
++    else
++      BLTK_MAIN=$WHICH_BLTK
++    fi
++    BLTK_ROOT=`echo $BLTK_MAIN | sed 's|/bin/.*$||'`
++
++    root_len=`echo $BLTK_ROOT | wc -c`
++    main_len=`echo $BLTK_MAIN | wc -c`
++    
++    if [[ $root_len = $main_len ]]
++    then
++      RETCODE=2
++    else
++      [ -f "$BLTK_CONF" ] && . "$BLTK_CONF"
++
++      [ -z $BLTK_HOME ] && BLTK_HOME=~/.bltk
++
++      export BLTK_ROOT
++      export BLTK_BIN=$BLTK_ROOT/bin
++      export BLTK_TMP=$BLTK_HOME/tmp
++    fi
++  fi
++
++  return $RETCODE
++}
++
++set_bltk_paths
++
++if [ ! $? = 0 ]; then
++  echo "ERROR in setting environmental paths" >&2
++  exit 1
++fi
+ 
+ BLTK_GET_STAT_CMD="$BLTK_BIN/bltk_get_stat $stat_ign_lines_arg"
+ BLTK_CALC_CMD=$BLTK_BIN/bltk_calc
+--- orig-1.0.9/tools/analyzer/bltk_report_table.sh	2009-04-10 09:14:20.000000000 +0200
++++ curr-1.0.9-1/tools/analyzer/bltk_report_table.sh	2009-07-17 11:03:54.823880990 +0200
+@@ -41,26 +41,44 @@
+ 
+ unalias -a
+ 
+-set_bltk_root()
++set_bltk_paths()
+ {
+-	PROG=`basename $0`
++  WHICH_BLTK=`which bltk`
++  RETCODE=$?
+ 
+-	BLTK_ROOT=`dirname $0`
+-	if [[ ! -a $BLTK_ROOT/.bltk ]]
+-	then
+-		BLTK_ROOT=`dirname $BLTK_ROOT`
+-		if [[ ! -a $BLTK_ROOT/.bltk ]]
+-		then
+-			echo "Cannot determine bltk root, bltk tree corrupted."
+-			exit 2
+-		fi
+-	fi
+-	export BLTK_ROOT
+-	export BLTK_BIN=$BLTK_ROOT/bin
+-	export BLTK_TMP=$BLTK_ROOT/tmp
++  if [[ $RETCODE = 0 ]]
++  then
++    file -b $WHICH_BLTK | grep symbolic > /dev/null
++    TMPCODE=$?
++    if [[ $TMPCODE = 0 ]]
++    then
++      BLTK_MAIN=`readlink -f $WHICH_BLTK`
++    else
++      BLTK_MAIN=$WHICH_BLTK
++    fi
++    BLTK_ROOT=`echo $BLTK_MAIN | sed 's|/bin/.*$||'`
++
++    root_len=`echo $BLTK_ROOT | wc -c`
++    main_len=`echo $BLTK_MAIN | wc -c`
++    
++    if [[ $root_len = $main_len ]]
++    then
++      RETCODE=2
++    else
++      [ -f "$BLTK_CONF" ] && . "$BLTK_CONF"
++
++      [ -z $BLTK_HOME ] && BLTK_HOME=~/.bltk
++
++      export BLTK_ROOT
++      export BLTK_BIN=$BLTK_ROOT/bin
++      export BLTK_TMP=$BLTK_HOME/tmp
++    fi
++  fi
++
++  return $RETCODE
+ }
+ 
+-set_bltk_root
++set_bltk_paths
+ 
+ BLTK_REPORT=$BLTK_BIN/bltk_report
+ 
+--- orig-1.0.9/tools/analyzer/bltk_report_uncompress.sh	2009-04-10 09:14:20.000000000 +0200
++++ curr-1.0.9-1/tools/analyzer/bltk_report_uncompress.sh	2009-07-17 11:03:54.837880784 +0200
+@@ -41,27 +41,44 @@
+ 
+ unalias -a
+ 
+-set_bltk_root()
++set_bltk_paths()
+ {
+-	PROG=`basename $0`
++  WHICH_BLTK=`which bltk`
++  RETCODE=$?
+ 
+-	BLTK_ROOT=`dirname $0`
+-	if [[ ! -a $BLTK_ROOT/.bltk ]]
+-	then
+-		BLTK_ROOT=`dirname $BLTK_ROOT`
+-		if [[ ! -a $BLTK_ROOT/.bltk ]]
+-		then
+-			echo "Cannot determine bltk root, bltk tree corrupted."
+-			exit 2
+-		fi
+-	fi
+-	export BLTK_ROOT
+-	export BLTK_BIN=$BLTK_ROOT/bin
+-	export BLTK_TMP=$BLTK_ROOT/tmp
+-	export BLTK_GET_REALPATH=$BLTK_BIN/bltk_get_realpath
++  if [[ $RETCODE = 0 ]]
++  then
++    file -b $WHICH_BLTK | grep symbolic > /dev/null
++    TMPCODE=$?
++    if [[ $TMPCODE = 0 ]]
++    then
++      BLTK_MAIN=`readlink -f $WHICH_BLTK`
++    else
++      BLTK_MAIN=$WHICH_BLTK
++    fi
++    BLTK_ROOT=`echo $BLTK_MAIN | sed 's|/bin/.*$||'`
++
++    root_len=`echo $BLTK_ROOT | wc -c`
++    main_len=`echo $BLTK_MAIN | wc -c`
++    
++    if [[ $root_len = $main_len ]]
++    then
++      RETCODE=2
++    else
++      [ -f "$BLTK_CONF" ] && . "$BLTK_CONF"
++
++      [ -z $BLTK_HOME ] && BLTK_HOME=~/.bltk
++
++      export BLTK_ROOT
++      export BLTK_BIN=$BLTK_ROOT/bin
++      export BLTK_TMP=$BLTK_HOME/tmp
++    fi
++  fi
++
++  return $RETCODE
+ }
+ 
+-set_bltk_root
++set_bltk_paths
+ 
+ CWD=$PWD
+ 
+--- orig-1.0.9/tools/analyzer/bltk_func.sh	1970-01-01 01:00:00.000000000 +0100
++++ curr-1.0.9-1/tools/analyzer/bltk_func.sh	2009-07-17 11:03:54.824880651 +0200
+@@ -0,0 +1,77 @@
++#!/bin/bash
++#
++# Copyright (c) 2009 Red Hat Inc.
++# Copyright (c) 2009 Jiri Skala <jskala@redhat.com>
++# All rights reserved.
++#
++# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++#
++# Redistribution and use in source and binary forms, with or without
++# modification, are permitted provided that the following conditions
++# are met:
++#
++#   Redistributions of source code must retain the above copyright notice,
++#   this list of conditions and the following disclaimer.
++#
++#   Redistributions in binary form must reproduce the above copyright
++#   notice, this list of conditions and the following disclaimer in the
++#   documentation and/or other materials provided with the distribution.
++#
++#   Neither the name of Intel Corporation nor the names of its contributors
++#   may be used to endorse or promote products derived from this software
++#   without specific prior written permission.
++#
++# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
++#
++# TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
++# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
++# AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
++# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
++# THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
++# DAMAGE.
++#
++# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++#
++
++set_bltk_paths()
++{
++  WHICH_BLTK=`which bltk`
++  RETCODE=$?
++
++  if [[ $RETCODE = 0 ]]
++  then
++    file -b $WHICH_BLTK | grep symbolic > /dev/null
++    TMPCODE=$?
++    if [[ $TMPCODE = 0 ]]
++    then
++      BLTK_MAIN=`readlink -f $WHICH_BLTK`
++    else
++      BLTK_MAIN=$WHICH_BLTK
++    fi
++    BLTK_ROOT=`echo $BLTK_MAIN | sed 's|/bin/.*$||'`
++
++    root_len=`echo $BLTK_ROOT | wc -c`
++    main_len=`echo $BLTK_MAIN | wc -c`
++    
++    if [[ $root_len = $main_len ]]
++    then
++      RETCODE=2
++    else
++      [ -f "$BLTK_CONF" ] && . "$BLTK_CONF"
++
++      [ -z $BLTK_HOME ] && BLTK_HOME=~/.bltk
++
++      export BLTK_ROOT
++      export BLTK_BIN=$BLTK_ROOT/bin
++      export BLTK_TMP=$BLTK_HOME/tmp
++    fi
++  fi
++
++  return $RETCODE
++}
++
+--- orig-1.0.9/tools/analyzer/Makefile	2009-04-10 09:14:20.000000000 +0200
++++ curr-1.0.9-1/tools/analyzer/Makefile	2009-07-17 11:03:54.826913428 +0200
+@@ -15,7 +15,7 @@
+ 
+ SHFILES		= bltk_get_stat bltk_report bltk_report_table bltk_report_check \
+ 			bltk_plot bltk_get_hd_rpm \
+-			bltk_report_compress bltk_report_uncompress
++			bltk_report_compress bltk_report_uncompress bltk_func
+ SHFILES_SH	= ${SHFILES:=.sh}
+ SHTARGETS	= $(SHFILES:%=$(BIN)/%)
+ 

@@ -1,0 +1,48 @@
+diff -up bltk-1.0.9/tools/bltk/parseconf.c.conf_home bltk-1.0.9/tools/bltk/parseconf.c
+--- bltk-1.0.9/tools/bltk/parseconf.c.conf_home	2009-07-31 10:11:51.812041537 +0200
++++ bltk-1.0.9/tools/bltk/parseconf.c	2009-07-31 10:14:00.747294693 +0200
+@@ -47,7 +47,8 @@
+ 
+ #include "bltk.h"
+ 
+-#define BLTK_CONF                   "/etc/bltk.conf"
++#define BLTK_CONF                   "bltk.conf"
++#define BLTK_HOME                   ".bltk"
+ 
+ typedef struct para_item_str_t
+ {
+@@ -221,12 +222,24 @@ void
+ param_load_conf()
+ {
+   char str[STR_LEN];
++  char conf_file[STR_LEN];
+   char name[STR_LEN], val[STR_LEN];
+   int index, len;
+ 	FILE *f;
+ 
+-  if ((f = fopen(BLTK_CONF, "rt")) != NULL)
++
++  sprintf(conf_file, "%s/%s/%s", getenv("HOME"), BLTK_HOME, BLTK_CONF);
++  if ((f = fopen(conf_file, "rt")) == NULL)
+   {
++    sprintf(conf_file, "/etc/%s", BLTK_CONF);
++    f = fopen(conf_file, "rt");
++  }
++
++  if (f != NULL)
++  {
++    sprintf(str, "BLTK_CONF=%s", conf_file);
++    putenv(strdup(str));
++
+     while (fgets(str, STR_LEN, f) != NULL)
+     {
+       if ((len = strlen(str)) > 0 && str[len-1] == '\n')
+@@ -264,7 +277,7 @@ param_load_defaults()
+ 
+   if (bltk_home == NULL)
+   {
+-    sprintf(str, "%s/.bltk", getenv("HOME"));
++    sprintf(str, "%s/%s", getenv("HOME"), BLTK_HOME);
+     bltk_home = strdup(str);
+   } else if (bltk_home[0] == '~') {
+     sprintf(str, "%s%s", getenv("HOME"), bltk_home+1);

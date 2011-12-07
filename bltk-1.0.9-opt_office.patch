@@ -1,0 +1,210 @@
+--- orig-1.0.9/wl_office/bltk_wl_office_run_app.sh	2009-04-10 09:14:20.000000000 +0200
++++ curr-1.0.9-1/wl_office/bltk_wl_office_run_app.sh	2009-07-17 11:03:54.896922872 +0200
+@@ -38,12 +38,14 @@
+ # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ #
+ 
++[ -f "$BLTK_CONF" ] && . "$BLTK_CONF"
+ 
+ unalias -a
+ 
+ SOFFICE_FLG="-minimized -invisible -norestore -quickstart -nologo -nolockcheck -nodefault"
++WL_OFFICE_WORKING_DIR=${WL_OFFICE_WORKING_DIR:-"~/.bltk"}
+ 
+-$SOFFICE_PROG $SOFFICE_FLG $1 &
++$SOFFICE_PROG $SOFFICE_FLG $WL_OFFICE_WORKING_DIR/$1 &
+ 
+ exit $?
+ 
+--- orig-1.0.9/wl_office/bltk_wl_office.sh	2009-04-10 09:14:20.000000000 +0200
++++ curr-1.0.9-1/wl_office/bltk_wl_office.sh	2009-07-17 11:03:55.016999320 +0200
+@@ -38,11 +38,21 @@
+ # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ #
+ 
++[ -f "$BLTK_CONF" ] && . "$BLTK_CONF"
++
+ source `dirname $0`/../../bin/bltk_wl_common
+ [[ $? != 0 ]] && { echo "bltk tree corrupted"; exit 2; }
+ 
+ XSE_PROG="bltk_wl_office_xse"
+ 
++WL_OFFICE_WORKING_DIR=${WL_OFFICE_WORKING_DIR:-"~/.bltk"}
++cd $WL_OFFICE_WORKING_DIR
++WL_OFFICE_WORKING_DIR=`pwd`
++cd $OLDPWD
++
++export USER_DELAY_TMP=$BLTK_HOME/user_delay.tmp
++
++
+ startup()
+ {
+ 	trap 'cleanup 1; exit 1' 1 2 3 15
+@@ -55,7 +65,14 @@
+ 	wl_check_install office
+ 	wl_check_error $?
+ 
+-	export SOFFICE_PROG=$HOME/soffice
++	wl_install_file 0644 text1 $WL_OFFICE_WORKING_DIR/text1
++	wl_check_error $?
++	wl_install_file 0644 text2 $WL_OFFICE_WORKING_DIR/text2
++	wl_check_error $?
++	wl_install_file 0644 text3 $WL_OFFICE_WORKING_DIR/text3
++	wl_check_error $?
++
++	export SOFFICE_PROG=${SOFFICE_PROG:-"$HOME/soffice"}
+ 
+ 	BLTK_WL_OFFICE_SCEN=$BLTK_WL_FILE
+ 
+@@ -82,39 +99,44 @@
+ {
+ 	ST_TIME=`$BLTK_TIME_CMD`
+ 
+-	wl_remove_file OOWRITER_FILE.odt
++	wl_remove_file $WL_OFFICE_WORKING_DIR/OOWRITER_FILE.odt
+ 	wl_check_error $?
+-	wl_copy_file OOWRITER_FILE_SAMPLE.odt OOWRITER_FILE.odt
++	wl_install_file 0644 OOWRITER_FILE_SAMPLE.odt $WL_OFFICE_WORKING_DIR/OOWRITER_FILE.odt
+ 	wl_check_error $?
+ 
+-	wl_remove_file OOCALC_FILE.ods
++	wl_remove_file O$WL_OFFICE_WORKING_DIR/OCALC_FILE.ods
+ 	wl_check_error $?
+-	wl_copy_file OOCALC_FILE_SAMPLE.ods OOCALC_FILE.ods
++	wl_install_file 0644 OOCALC_FILE_SAMPLE.ods $WL_OFFICE_WORKING_DIR/OOCALC_FILE.ods
+ 	wl_check_error $?
+ 
+-	wl_remove_file OODRAW_FILE.odg
++	wl_remove_file $WL_OFFICE_WORKING_DIR/OODRAW_FILE.odg
+ 	wl_check_error $?
+-	wl_copy_file OODRAW_FILE_SAMPLE.odg OODRAW_FILE.odg
++	wl_install_file 0644 OODRAW_FILE_SAMPLE.odg $WL_OFFICE_WORKING_DIR/OODRAW_FILE.odg
+ 	wl_check_error $?
+ 
+-	wl_remove_file ./user_delay.tmp
++	wl_remove_file $USER_DELAY_TMP
+ 	wl_check_error $?
+ 
+ 	if [[ $BLTK_WL_OFFICE_SCEN = DEBUG ]]
+ 	then
+ 		sleep 1
+-		echo 0.11 > ./user_delay.tmp
+-		wl_check_error $? "echo 1.11 >./user_delay.tmp failed"
++		echo 0.11 > $USER_DELAY_TMP
++		wl_check_error $? "echo 1.11 > $USER_DELAY_TMP failed"
+ 	elif [[ -f "$BLTK_WL_OFFICE_SCEN" ]]
+ 	then
+ 		CMD="$BLTK_WL_BIN/$XSE_PROG $BLTK_WL_OFFICE_SCEN"
+ #####		\time -p $CMD >./XSE.times 2>&1
+ 		$CMD
++		if [ -f $BLTK_STOP_FNAME ]
++		then
++			ps -eopid,cmd | grep $WL_OFFICE_WORKING_DIR | sed 's/^ *//' | sed 's/ .*$//' | xargs kill -s SIGKILL
++			exit 0
++		fi
+ 	else
+ 		wl_check_error 1 "Cannot access $BLTK_WL_OFFICE_SCEN"
+ 	fi
+ 
+-	CMD="cat ./user_delay.tmp"
++	CMD="cat $USER_DELAY_TMP"
+ 	DELAY_TIME=`$CMD`
+ 	wl_check_error $? "$CMD failed"
+ 
+@@ -159,6 +181,14 @@
+ 	echo "$CNT: Score $score" >$TTY 2>&1
+ }
+ 
++killchildproc()
++{
++	officeproc = ps -eopid,cmd | grep $WL_OFFICE_WORKING_DIR | sed 's/ .*$//'
++	for i in $officeproc; do
++           sudo kill -s SIFKILL $i
++	done
++}
++
+ run()
+ {
+ 	CNT=1
+@@ -167,6 +197,7 @@
+ 		run1
+ 		if [[ $BLTK_SHOW_DEMO = TRUE && $CNT = $BLTK_SHOW_DEMO_NUM ]]
+ 		then
++			killchildproc
+ 			break
+ 		fi
+ 		(( CNT++ ))
+@@ -179,7 +210,12 @@
+ 	exit $1
+ }
+ 
+-startup
+-run
+-cleanup 0
++if [ "$WL_OFFICE_ENABLED" = "YES" ]
++then
++	startup
++	run
++	cleanup 0
++else
++	exit 0
++fi
+ 
+--- orig-1.0.9/tools/bltk/bltk_wl_common.sh	2009-04-10 09:14:20.000000000 +0200
++++ curr-1.0.9-1/tools/bltk/bltk_wl_common.sh	2009-07-17 11:03:54.742158129 +0200
+@@ -38,6 +38,7 @@
+ # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ #
+ 
++[ -f "$BLTK_CONF" ] && . "$BLTK_CONF"
+ 
+ unalias -a
+ 
+@@ -130,7 +131,7 @@
+ 
+ 	export BLTK_BIN=$BLTK_ROOT/bin
+ 	export BLTK_LIB=$BLTK_ROOT/lib
+-	export BLTK_TMP=$BLTK_ROOT/tmp
++	export BLTK_TMP=$HOME/.bltk/tmp
+ 
+ 	[[ -z $BLTK_SUDO_CMD ]] && export BLTK_SUDO_CMD=$BLTK_BIN/bltk_sudo
+ 	[[ -z $BLTK_CALC_CMD ]] && export BLTK_CALC_CMD=$BLTK_BIN/bltk_calc
+@@ -180,7 +181,7 @@
+ 
+ 	export BLTK_BIN=$BLTK_ROOT/bin
+ 	export BLTK_LIB=$BLTK_ROOT/lib
+-	export BLTK_TMP=$BLTK_ROOT/tmp
++	export BLTK_TMP=$HOME/.bltk/tmp
+ 
+ 	export BLTK_EXTERN_SRC=$BLTK_ROOT/extern
+ #	export BLTK_EXTERN_TGT=$BLTK_ROOT/extern
+@@ -228,7 +229,7 @@
+ 		wl_error_msg "cd $BLTK_WL_ROOT failed"
+ 		return 1
+ 	fi
+-	rm -f fail
++	rm -f $BLTK_FAIL_NAME
+ 
+ 	RES_SCORE=$BLTK_RESULTS/score
+ 	[[ -a $RES_SCORE ]] && rm $RES_SCORE
+@@ -626,3 +627,20 @@
+ 	return 0
+ }
+ 
++wl_install_file()
++{
++  typeset access=$1
++	typeset	file1=$2
++	typeset	file2=$3
++
++	CMD="install -m $access $file1 $file2"
++	$CMD
++	if [[ $? != 0 ]]
++	then
++		wl_error_msg "$CMD failed"
++		wl_error_msg "Cannot copy $file1 to $file2"
++		return 1
++	fi
++	return 0
++}
++

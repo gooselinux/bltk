@@ -1,0 +1,132 @@
+diff -up bltk-1.0.9/wl_developer/bltk_wl_developer_install.sh.cond_install bltk-1.0.9/wl_developer/bltk_wl_developer_install.sh
+--- bltk-1.0.9/wl_developer/bltk_wl_developer_install.sh.cond_install	2009-07-29 11:38:48.000000000 +0200
++++ bltk-1.0.9/wl_developer/bltk_wl_developer_install.sh	2009-07-29 14:54:40.878602487 +0200
+@@ -38,6 +38,8 @@
+ # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ #
+ 
++[ -f "$BLTK_CONF" ] && . "$BLTK_CONF"
++
+ source `dirname $0`/../../bin/bltk_wl_common
+ [[ $? != 0 ]] && { echo "bltk tree corrupted"; exit 2; }
+ 
+@@ -139,9 +141,14 @@ else
+ 	exit 1
+ fi
+ 
+-{
+-startup
+-$work
+-cleanup 0
+-}  2>&1 | tee -i $work.log
++if [[ "$WL_DEVELOPER_ENABLED" = "YES" && "$WL_DEVELOPER_EXTERN" = "YES" ]]
++then
++	{
++	startup
++	$work
++	cleanup 0
++	}  2>&1 | tee -i $work.log
++else
++	exit 0
++fi
+ 
+diff -up bltk-1.0.9/wl_office/bltk_wl_office_install.sh.cond_install bltk-1.0.9/wl_office/bltk_wl_office_install.sh
+--- bltk-1.0.9/wl_office/bltk_wl_office_install.sh.cond_install	2009-07-29 11:38:48.000000000 +0200
++++ bltk-1.0.9/wl_office/bltk_wl_office_install.sh	2009-07-29 15:00:59.406496688 +0200
+@@ -38,6 +38,7 @@
+ # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ #
+ 
++[ -f "$BLTK_CONF" ] && . "$BLTK_CONF"
+ 
+ source `dirname $0`/../../bin/bltk_wl_common
+ [[ $? != 0 ]] && { echo "bltk tree corrupted"; exit 2; }
+@@ -80,7 +81,6 @@ cleanup()
+ 
+ install_ooo()
+ {
+-
+ 	wl_remove_file ${HOME}/.sversionrc
+ 	wl_check_error $?
+ 
+@@ -162,20 +162,25 @@ uninstall()
+ 
+ }
+ 
+-if [[ $# = 0 || $1 = i || $1 = install ]]
+-then
+-	work=install
+-elif [[ $1 = u || $1 = uninstall ]]
++if [[ "$WL_OFFICE_ENABLED" = "YES" && "$WL_OFFICE_EXTERN" = "YES" ]]
+ then
+-	work=uninstall
++	if [[ $# = 0 || $1 = i || $1 = install ]]
++	then
++		work=install
++	elif [[ $1 = u || $1 = uninstall ]]
++	then
++		work=uninstall
++	else
++		echo "Invalid parameter"
++		exit 1
++	fi
++
++	{
++		startup
++		$work
++		cleanup 0
++	}  2>&1 | tee -i $work.log
+ else
+-	echo "Invalid parameter"
+-	exit 1
++	exit 0
+ fi
+ 
+-{
+-startup
+-$work
+-cleanup 0
+-}  2>&1 | tee -i $work.log
+-
+diff -up bltk-1.0.9/wl_player/bltk_wl_player_install.sh.cond_install bltk-1.0.9/wl_player/bltk_wl_player_install.sh
+--- bltk-1.0.9/wl_player/bltk_wl_player_install.sh.cond_install	2009-07-29 11:38:48.000000000 +0200
++++ bltk-1.0.9/wl_player/bltk_wl_player_install.sh	2009-07-29 15:06:43.249585854 +0200
+@@ -41,6 +41,8 @@
+ 
+ PLAYER_INSTALL_FLAGS=" --disable-ivtv"
+ 
++[ -f "$BLTK_CONF" ] && . "$BLTK_CONF"
++
+ source `dirname $0`/../../bin/bltk_wl_common
+ [[ $? != 0 ]] && { echo "bltk tree corrupted"; exit 2; }
+ 
+@@ -286,17 +288,21 @@ else
+ 	exit 1
+ fi
+ 
++if [[ "$WL_PLAYER_ENABLED" = "YES" && "$WL_PLAYER_EXTERN" = "YES" ]]
++then
+ {
+-
+ #If there is a ENV variable named CFLAGS, the CFLAGS value in wl_player/Makefile
+ #will be set to this ENV variable. Since the MPlayer will inherit the ENV CFLAGS
+ #value, the compiling will failed for "-pedantic -std=c99" in CFLAGS. So we need
+ #to unset the variable here.
+ 
+-CFLAGS=
+-LDFLAGS=
+-startup
+-$work
+-cleanup 0
+-}  2>&1 | tee -i $work.log
+-
++	CFLAGS=
++	LDFLAGS=
++	startup
++	$work
++	cleanup 0
++	}  2>&1 | tee -i $work.log
++}
++else
++	exit 0
++fi

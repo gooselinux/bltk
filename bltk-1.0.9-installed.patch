@@ -1,0 +1,30 @@
+--- orig-1.0.9/tools/bltk/bltk_check.sh	2009-04-10 09:14:20.000000000 +0200
++++ curr-1.0.9-1/tools/bltk/bltk_check.sh	2009-07-17 11:03:54.764879831 +0200
+@@ -38,6 +38,7 @@
+ # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ #
+ 
++[ -f "$BLTK_CONF" ] && . "$BLTK_CONF"
+ 
+ source `dirname $0`/bltk_wl_common
+ [[ $? != 0 ]] && { echo "bltk tree corrupted"; exit 2; }
+@@ -120,7 +121,7 @@
+ 	wl=${WLA[wl_cnt]}
+ 	WL_RES=$RES/$wl.results
+ 	echo "=== Workload '$wl'"
+-	if [[ ! -f $BLTK_ROOT/wl_$wl/.installed && $wl != idle && $wl != reader ]]
++	if [[ $CHK_INSTALLED = "YES" && ! -f $BLTK_ROOT/wl_$wl/.installed && $wl != idle && $wl != reader ]]
+ 	then
+ 		echo "not installed";
+ 		WLR[wl_cnt]="not installed"
+--- orig-1.0.9/tools/bltk/bltk_wl_common.sh	2009-04-10 09:14:20.000000000 +0200
++++ curr-1.0.9-1/tools/bltk/bltk_wl_common.sh	2009-07-17 11:03:54.742158129 +0200
+@@ -374,7 +375,7 @@
+ {
+ 	typeset wl=$1
+ 
+-	if [[ ! -a $BLTK_WL_INSTALL_FILE ]]
++	if [[ $CHK_INSTALLED = "YES" && ! -a $BLTK_WL_INSTALL_FILE ]]
+ 	then
+ 		wl_error_msg "Installation is not completed, perform 'make install-$wl'"
+ 		return 1

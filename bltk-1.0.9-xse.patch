@@ -1,0 +1,251 @@
+diff -up bltk/include/xse.h.xse bltk/include/xse.h
+--- bltk/include/xse.h.xse	2009-04-10 09:14:20.000000000 +0200
++++ bltk/include/xse.h	2009-07-29 11:14:00.971521183 +0200
+@@ -87,7 +87,8 @@
+ #define	DELAY_1_MIN	(1 * 60 * 1000)
+ #define	DELAY_2_MIN	(2 * 60 * 1000)
+ #define	WINDOWID	"WINDOWID"
+-#define	DELAY_FILE	"./user_delay.tmp"
++#define	DELAY_FILE	"user_delay.tmp"
++#define WINID_FILE	"winid.tmp"
+ #define	VI_CMD		"vi"
+ #define	CSCOPE_CMD	"cscope"
+ #define	F4		"F4"
+diff -up bltk/tools/bltk/main.c.xse bltk/tools/bltk/main.c
+--- bltk/tools/bltk/main.c.xse	2009-07-29 11:14:00.915494499 +0200
++++ bltk/tools/bltk/main.c	2009-07-29 11:14:00.989494544 +0200
+@@ -329,6 +329,7 @@ static void create_version_file(char *wl
+ static void get_info(int no);
+ 
+ static int sig_abort_flg = 0;
++static int sig_hup_flg = 0;
+ static int help_cnt = 0;
+ static int version_flg = 0;
+ 
+@@ -540,7 +541,7 @@ void handler(int sig)
+ 	turn_off_stat_memory();
+ 
+ 	if (sig == SIGHUP) {
+-		set_signal(SIGHUP);
++		create_stop_file();
+ 		return;
+ 	}
+ 
+diff -up bltk/tools/xse/Makefile.xse bltk/tools/xse/Makefile
+--- bltk/tools/xse/Makefile.xse	2009-04-10 09:14:20.000000000 +0200
++++ bltk/tools/xse/Makefile	2009-07-29 11:14:00.972554857 +0200
+@@ -1,10 +1,10 @@
+ 
+ CFLAGS		= -Wall -pedantic -std=c99 -g -O2 -I ../../include -fPIC
+-LDFLAGS		= -L/usr/X11R6/lib64 -L/usr/X11R6/lib -lX11
++LDFLAGS		= -L/usr/X11R6/lib64 -L/usr/X11R6/lib -lX11 -Wl,-soname -Wl,libxse.so.0
+ 
+ LIB		= ../../lib
+ 
+-LIBNAME		= libxse.so
++LIBNAME		= libxse.so.0
+ TARGET		= $(LIB)/$(LIBNAME)
+ FILES		= xse
+ OFILES		= ${FILES:=.o}
+diff -up bltk/tools/xse/xse.c.xse bltk/tools/xse/xse.c
+--- bltk/tools/xse/xse.c.xse	2009-04-10 09:14:20.000000000 +0200
++++ bltk/tools/xse/xse.c	2009-07-29 11:14:00.970496029 +0200
+@@ -52,16 +52,20 @@
+ #include <time.h>
+ #include <sys/wait.h>
+ #include <signal.h>
++#include <sys/prctl.h>
+ 
+ #include <xse.h>
+ 
+ char *progname = "xse";
+ char *xchg_buf = NULL;
+ char *scen_file = NULL;
++char *stop_name = "NULL";
+ int default_release_flg = 0;
+ int check_delay_time_flg = 0;
+ int correct_delay_time_flg = 0;
+ 
++char winid_tmp[STR_LEN];
++
+ long double user_delay = 0;
+ 
+ static Display *display = NULL;
+@@ -412,8 +416,10 @@ void write_delay(char *fname)
+ 	char string[STR_LEN];
+ 
+ 	if (fname == 0) {
+-		fname = DELAY_FILE;
++		snprintf(string, STR_LEN, "%s/%s", getenv("BLTK_HOME"), DELAY_FILE);
++		fname = strdup(string);
+ 	}
++	fprintf(stderr, "user delay file: %s\n", fname);
+ 
+ 	fd = open(fname, O_RDWR | O_TRUNC | O_CREAT, 0666);
+ 	if (fd < 0) {
+@@ -504,8 +510,8 @@ static int x_get_winid_action(char *titl
+ 	int ret = 0;
+ 	char cmd[STR_LEN];
+ 
+-	(void)sprintf(cmd, "bltk_winid -S -t %d -s %d \"%s\" >./winid.tmp",
+-		      wait_time, sleep_time, title);
++	(void)sprintf(cmd, "bltk_winid -S -t %d -s %d \"%s\" > %s",
++		      wait_time, sleep_time, title, winid_tmp);
+ 	ret = system(cmd);
+ 	if (ret != 0) {
+ 		(void)fprintf(stderr, "%s failed\n", cmd);
+@@ -519,7 +525,7 @@ static int get_winid_action(char *title)
+ 	int ret = 0;
+ 	char cmd[STR_LEN];
+ 
+-	(void)sprintf(cmd, "bltk_winid -S \"%s\" >./winid.tmp", title);
++	(void)sprintf(cmd, "%s/bin/bltk_winid -S \"%s\" > %s", getenv("BLTK_ROOT"), title, winid_tmp);
+ 	ret = system(cmd);
+ 	if (ret != 0) {
+ 		(void)fprintf(stderr, "%s failed\n", cmd);
+@@ -549,7 +555,7 @@ static int end_winid_action(char *title)
+ 	int ret = 0;
+ 	char cmd[STR_LEN];
+ 
+-	(void)sprintf(cmd, "bltk_winid -F \"%s\"", title);
++	(void)sprintf(cmd, "%s/bin/bltk_winid -F \"%s\"", getenv("BLTK_ROOT"), title);
+ 	ret = system(cmd);
+ 	if (ret != 0) {
+ 		(void)fprintf(stderr, "%s failed\n", cmd);
+@@ -562,6 +568,18 @@ static int end_winid_action(char *title)
+ static pid_t pid_array[1024];
+ static int pid_cnt = 0;
+ 
++void chk_stop_file()
++{
++	int i;
++
++	if (access(stop_name, F_OK) == 0) {
++		for (i = 0; i < pid_cnt; i++) {
++			(void)kill(pid_array[i], SIGTERM);
++		}
++		xse_exit(0);
++	}
++}
++
+ static int runcmd_action(char *name, int wait_time, int state)
+ {
+ 	int ret = 0;
+@@ -1096,7 +1114,7 @@ static void run_scen1(xse_scen_t * scen1
+ 			} else {
+ 				get_winid_action(string);
+ 			}
+-			readf_action("./winid.tmp", count, delay_time);
++			readf_action(winid_tmp, count, delay_time);
+ 			setwinid_action(string, xchg_buf, delay_time);
+ 			delay_time = 0;
+ 			break;
+@@ -1189,11 +1207,24 @@ static void run_scen1(xse_scen_t * scen1
+ 		if (break_flg) {
+ 			break;
+ 		}
++		chk_stop_file();
+ 	}
+ }
+ 
+ void init_xse()
+ {
++	if (prctl(PR_SET_PDEATHSIG, SIGKILL, 0, 0, 0) != 0)
++	{
++		xse_exit(2);
++	}
++	if (prctl(PR_SET_PDEATHSIG, SIGTERM, 0, 0, 0) != 0)
++	{
++		xse_exit(2);
++	}
++
++	stop_name = getenv("BLTK_STOP_FNAME");
++	
++	snprintf(winid_tmp, sizeof winid_tmp, "%s/%s", getenv("BLTK_HOME"), WINID_FILE);
+ 	display = XOpenDisplay(NULL);
+ 	if (display == NULL) {
+ 		(void)fprintf(stderr, "%s: Cannot open Display\n", progname);
+diff -up bltk/wl_developer/Makefile.xse bltk/wl_developer/Makefile
+--- bltk/wl_developer/Makefile.xse	2009-04-10 09:14:20.000000000 +0200
++++ bltk/wl_developer/Makefile	2009-07-29 11:14:00.975524925 +0200
+@@ -1,6 +1,6 @@
+ 
+ CFLAGS		= -Wall -pedantic -std=c99 -g -O2 -I../include
+-LDFLAGS		= -L/usr/X11R6/lib64 -L/usr/X11R6/lib -lX11 -lxse -L../lib
++LDFLAGS		= -L/usr/X11R6/lib64 -L/usr/X11R6/lib -lX11 ../lib/libxse.so.0 -Wl,-rpath,/usr/lib/bltk
+ 
+ BIN		= bin
+ 
+@@ -15,7 +15,7 @@ SHFILES		= bltk_wl_developer_install blt
+ SHFILES_SH	= ${SHFILES:=.sh}
+ SHTARGETS	= $(SHFILES:%=$(BIN)/%)
+ 
+-EXTERN_DEPS	=  $(HIDERS) ../lib/libxse.so
++EXTERN_DEPS	=  $(HIDERS) ../lib/libxse.so.0
+ 
+ 
+ all : $(BIN) $(SUBDIRS) $(TARGET) $(SHTARGETS) FORCE
+diff -up bltk/wl_game/Makefile.xse bltk/wl_game/Makefile
+--- bltk/wl_game/Makefile.xse	2009-04-10 09:14:20.000000000 +0200
++++ bltk/wl_game/Makefile	2009-07-29 11:14:00.978525164 +0200
+@@ -1,6 +1,6 @@
+ 
+ CFLAGS		= -Wall -pedantic -std=c99 -g -O2 -I../include
+-LDFLAGS		= -L/usr/X11R6/lib64 -L/usr/X11R6/lib -lX11 -lxse -L../lib
++LDFLAGS		= -L/usr/X11R6/lib64 -L/usr/X11R6/lib -lX11 ../lib/libxse.so.0 -Wl,-rpath,/usr/lib/bltk
+ 
+ BIN		= bin
+ 
+@@ -18,7 +18,7 @@ SHTARGETS	= $(SHFILES:%=$(BIN)/%)
+ DATAFILES	=
+ DATATARGETS	= $(DATAFILES:%=$(BIN)/%)
+ 
+-EXTERN_DEPS	= $(HIDERS) ../lib/libxse.so
++EXTERN_DEPS	= $(HIDERS) ../lib/libxse.so.0
+ 
+ 
+ all : $(BIN) $(SUBDIRS) $(TARGET) $(TARGET1) $(TARGET2) $(SHTARGETS) $(DATATARGETS)
+diff -up bltk/wl_office/Makefile.xse bltk/wl_office/Makefile
+--- bltk/wl_office/Makefile.xse	2009-04-10 09:14:20.000000000 +0200
++++ bltk/wl_office/Makefile	2009-07-29 11:14:00.982494753 +0200
+@@ -1,6 +1,6 @@
+ 
+ CFLAGS		= -Wall -pedantic -std=c99 -g -O2 -I../include
+-LDFLAGS		= -L/usr/X11R6/lib64 -L/usr/X11R6/lib -lX11 -lxse -L../lib
++LDFLAGS		= -L/usr/X11R6/lib64 -L/usr/X11R6/lib -lX11 ../lib/libxse.so.0 -Wl,-rpath,/usr/lib/bltk
+ 
+ BIN		= bin
+ 
+@@ -15,10 +15,10 @@ SHFILES		= bltk_wl_office_install bltk_w
+ SHFILES_SH	= ${SHFILES:=.sh}
+ SHTARGETS	= $(SHFILES:%=$(BIN)/%)
+ 
+-DATAFILES	= scen_install 
++DATAFILES	= scen_install
+ DATATARGETS	= $(DATAFILES:%=$(BIN)/%)
+ 
+-EXTERN_DEPS	= $(HIDERS) ../lib/libxse.so
++EXTERN_DEPS	= $(HIDERS) ../lib/libxse.so.0
+ 
+ 
+ all : $(BIN) $(SUBDIRS) $(TARGET) $(TARGET1) $(TARGET2) $(SHTARGETS) $(DATATARGETS)
+diff -up bltk/wl_reader/Makefile.xse bltk/wl_reader/Makefile
+--- bltk/wl_reader/Makefile.xse	2009-04-10 09:14:20.000000000 +0200
++++ bltk/wl_reader/Makefile	2009-07-29 11:14:00.985519159 +0200
+@@ -1,6 +1,6 @@
+ 
+ CFLAGS		= -Wall -pedantic -std=c99 -g -O2 -I../include
+-LDFLAGS		= -L/usr/X11R6/lib64 -L/usr/X11R6/lib -lX11 -lxse -L ../lib
++LDFLAGS		= -L/usr/X11R6/lib64 -L/usr/X11R6/lib -lX11 ../lib/libxse.so.0 -Wl,-rpath,/usr/lib/bltk
+ 
+ BIN		= bin
+ 
+@@ -17,7 +17,7 @@ SHFILES		= bltk_wl_reader_install bltk_w
+ SHFILES_SH	= ${SHFILES:=.sh}
+ SHTARGETS	= $(SHFILES:%=$(BIN)/%)
+ 
+-EXTERN_DEPS	= $(HIDERS) ../lib/libxse.so
++EXTERN_DEPS	= $(HIDERS) ../lib/libxse.so.0
+ 
+ 
+ all : $(BIN) $(SUBDIRS) $(TARGETS) $(SHTARGETS) FORCE

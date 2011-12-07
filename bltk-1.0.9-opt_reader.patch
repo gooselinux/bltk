@@ -1,0 +1,135 @@
+--- orig-1.0.9/wl_reader/bltk_wl_reader.sh	2009-04-10 09:14:20.000000000 +0200
++++ curr-1.0.9-1/wl_reader/bltk_wl_reader.sh	2009-07-17 11:03:55.065881503 +0200
+@@ -38,6 +38,7 @@
+ # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ #
+ 
++[ -f "$BLTK_CONF" ] && . "$BLTK_CONF"
+ 
+ source `dirname $0`/../../bin/bltk_wl_common
+ [[ $? != 0 ]] && { echo "bltk tree corrupted"; exit 2; }
+@@ -48,6 +49,13 @@
+ 
+ XSE_PROG="bltk_wl_reader_xse"
+ 
++WL_READER_WORKING_DIR=${WL_READER_WORKING_DIR:-"~/.bltk"}
++cd $WL_READER_WORKING_DIR
++WL_READER_WORKING_DIR=`pwd`
++cd $OLDPWD
++
++export USER_DELAY_TMP=$BLTK_HOME/user_delay.tmp
++
+ startup()
+ {
+ 	trap 'cleanup 1; exit 1' 1 2 3 15
+@@ -58,35 +66,35 @@
+ ###	wl_check_install reader
+ ###	wl_check_error $?
+ 
+-	if [[ -z $BLTK_WL_PROG ]]
++	if [[ -z $BLTK_READER_PROG ]]
+ 	then
+-		export BLTK_WL_PROG=$DEF_BROWSER
+-		export BLTK_WL_PROG_FLG=
++		export BLTK_READER_PROG=$DEF_BROWSER
++		export BLTK_READER_PROG_FLG=
+ 	fi
+ 
+-	wl_check_prog $BLTK_WL_PROG
++	wl_check_prog $BLTK_READER_PROG
+ 	wl_check_error $?
+ 
+-	wl_check_run_prog $BLTK_WL_PROG
++	wl_check_run_prog $BLTK_READER_PROG
+ 	wl_check_error $?
+ 
+-	echo "Browser	$BLTK_WL_PROG"
++	echo "Browser	$BLTK_READER_PROG"
+ 
+-	wl_check_all_run_prog $BLTK_WL_PROG
++	wl_check_all_run_prog $BLTK_READER_PROG
+ 	wl_check_error $?
+ 
+ 	tmp_reader_file=/tmp/$DEF_FILE
+ 
+-	if [[ $BLTK_WL_FILE = DEBUG ]]
++	if [[ $BLTK_READER_FILE = DEBUG ]]
+ 	then
+-		BLTK_WL_FILE=
++		BLTK_READER_FILE=
+ 	fi
+ 
+-	if [[ ! -z $BLTK_WL_FILE ]]
++	if [[ ! -z $BLTK_READER_FILE ]]
+ 	then
+-		reader_file=$BLTK_WL_FILE
++		reader_file=$BLTK_READER_FILE
+ 		title="$BLTK_WL_TITLE"
+-		flags="$BLTK_WL_PROG_FLG"
++		flags="$BLTK_READER_PROG_FLG"
+ 	else
+ 		default_flg=TRUE
+ 		reader_file=$DEF_FILE
+@@ -139,13 +147,13 @@
+ {
+ 	ST_TIME=`$BLTK_TIME_CMD`
+ 
+-	rm -f ./user_delay.tmp
++	rm -f $USER_DELAY_TMP
+ 
+-	CMD="$BLTK_WL_PROG $BLTK_WL_PROG_FLG $reader_file"
++	CMD="$BLTK_READER_PROG $BLTK_WL_PROG_FLG $reader_file"
+ 	$CMD &
+ 	wl_check_error $? "$CMD failed"
+ 
+-	BLTK_WL_ALL_PROC_NAME="$BLTK_WL_ALL_PROC_NAME $BLTK_WL_PROG"
++	BLTK_WL_ALL_PROC_NAME="$BLTK_WL_ALL_PROC_NAME $BLTK_READER_PROG"
+ 
+ 	windowid=`bltk_winid -S "$title"`
+ 	wl_check_error $? "Cannot get windowid of $BLTK_WL_PRO"
+@@ -157,11 +165,17 @@
+ 
+ 	CMD="$BLTK_WL_BIN/$XSE_PROG"
+ 	$CMD
++	if [ -f $BLTK_STOP_FNAME ]
++	then
++		ps -eopid,cmd | grep $BLTK_READER_PROG | sed 's/^ *//' | sed 's/ .*$//' | xargs kill -s SIGKILL
++		exit 0
++	fi
++
+ 	wl_check_error $? "$CMD failed"
+ 
+ 	BLTK_WL_PROC_NAME="$BLTK_WL_PROC_NAME $XSE_PROG"
+ 
+-	CMD="cat ./user_delay.tmp"
++	CMD="cat $USER_DELAY_TMP"
+ 	DELAY_TIME=`$CMD`
+ 	wl_check_error $? "$CMD failed"
+ 
+@@ -200,7 +214,12 @@
+ 	exit $1
+ }
+ 
+-startup
+-run
+-cleanup 0
++if [ "$WL_READER_ENABLED" = "YES" ]
++then
++	startup
++	run
++	cleanup 0
++else
++	exit 0
++fi
+ 
+--- orig-1.0.9/wl_reader/bltk_wl_reader_xse.c	2009-04-10 09:14:20.000000000 +0200
++++ curr-1.0.9-1/wl_reader/bltk_wl_reader_xse.c	2009-07-17 11:03:55.065881503 +0200
+@@ -108,7 +108,7 @@
+ 		}
+ 	}
+ 
+-	env = getenv("BLTK_WL_PROG");
++	env = getenv("BLTK_READER_PROG");
+ 	if (env && strcmp(env, "konqueror") == 0) {
+ 		scen[LINE_QUIT].string = "Q";
+ 	}

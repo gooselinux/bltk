@@ -1,0 +1,176 @@
+diff -up bltk-1.0.9/tools/bltk/main.c.wl_disable bltk-1.0.9/tools/bltk/main.c
+--- bltk-1.0.9/tools/bltk/main.c.wl_disable	2010-05-19 14:02:55.327377236 +0200
++++ bltk-1.0.9/tools/bltk/main.c	2010-05-19 14:52:33.331377362 +0200
+@@ -235,10 +235,14 @@ xtime_t time_start, time_prev;
+ int ac_err_workaround = 0;
+ 
+ int idle_workload_flg = 0;
++#ifdef HAVE_DEVELOPER_WORKLOAD
+ int developer_workload_flg = 0;
++#endif
+ int player_workload_flg = 0;
+ int reader_workload_flg = 0;
++#ifdef HAVE_DEVELOPER_WORKLOAD
+ int game_workload_flg = 0;
++#endif
+ int office_workload_flg = 0;
+ int user_workload_flg = 0;
+ int init_user_workload_flg = 0;
+@@ -1167,7 +1171,15 @@ static char popt_mask[256];
+ static int popt_mask_flg = 0;
+ 
+ static char *popt =
++#ifdef HAVE_DEVELOPER_WORKLOAD && HAVE_GAME_WORKLOAD
+     "hVvo:aNcCBXAHt:r:swulm:Qp:d:iIDPRGOU:g:YZJ:T:F:W:L:MSn:j:K:e:E:yzq:xb:f:k:";
++#elif HAVE_DEVELOPER_WORKLOAD
++    "hVvo:aNcCBXAHt:r:swulm:Qp:d:iIDPROU:g:YZJ:T:F:W:L:MSn:j:K:e:E:yzq:xb:f:k:";
++#elif HAVE_GAME_WORKLOAD
++    "hVvo:aNcCBXAHt:r:swulm:Qp:d:iIPRGOU:g:YZJ:T:F:W:L:MSn:j:K:e:E:yzq:xb:f:k:";
++#else
++    "hVvo:aNcCBXAHt:r:swulm:Qp:d:iIPROU:g:YZJ:T:F:W:L:MSn:j:K:e:E:yzq:xb:f:k:";
++#endif
+ 
+ static struct option popt_long[] = {
+ 	{"help", 0, 0, 'h'},
+@@ -1191,9 +1203,13 @@ static struct option popt_long[] = {
+ 	{"idle-test", 0, 0, 'i'},
+ 	{"idle", 0, 0, 'I'},
+ 	{"reader", 0, 0, 'R'},
++#ifdef HAVE_DEVELOPER_WORKLOAD
+ 	{"developer", 0, 0, 'D'},
++#endif
+ 	{"player", 0, 0, 'P'},
++#ifdef HAVE_GAME_WORKLOAD
+ 	{"game", 0, 0, 'G'},
++#endif
+ 	{"office", 0, 0, 'O'},
+ 	{"user", 1, 0, 'U'},
+ 	{"user-init", 1, 0, 'g'},
+@@ -1259,10 +1275,14 @@ static struct option_help popt_help[] = 
+ 	{"disp-load", "Debug workload, the time display on in percent"},
+ 	{"idle-test", "idle test"},
+ 	{"idle", "idle workload"},
++#ifdef HAVE_DEVELOPER_WORKLOAD
+ 	{"developer", "developer workload"},
++#endif
+ 	{"player", "dvd-playback workload"},
+ 	{"reader", "reader workload"},
++#ifdef HAVE_GAME_WORKLOAD
+ 	{"game", "3D-gaming workload"},
++#endif
+ 	{"office", "office productivity workload"},
+ 	{"user", "user-specified workload (path to executable)"},
+ 	{"user-init", "setup routines for user-specified workload"},
+@@ -1387,8 +1407,6 @@ static void common_usage(void)
+ 	if (!popt_mask_flg) {
+ 		(void)fprintf(stdout,
+ 			      "Examples:\n"
+-			      "    bltk -D or --developer\n"
+-			      "        developer workload running\n"
+ 			      "    bltk -R or --reader\n"
+ 			      "        reader workload running\n"
+ 			      "    bltk -i or --idle [-T 60]\n"
+@@ -1895,10 +1913,12 @@ int main(int argc, char **argv)
+ 		case 'p':
+ 			proc_load = atol(optarg);
+ 			break;
++#ifdef HAVE_DEVELOPER_WORKLOAD
+ 		case 'D':
+ 			developer_workload_flg = 1;
+ 			wl_cnt++;
+ 			break;
++#endif
+ 		case 'J':
+ 			arg_jobs = atoi(optarg);
+ 			break;
+@@ -1923,10 +1943,12 @@ int main(int argc, char **argv)
+ 		case 'L':
+ 			arg_title = optarg;
+ 			break;
++#ifdef HAVE_GAME_WORKLOAD
+ 		case 'G':
+ 			game_workload_flg = 1;
+ 			wl_cnt++;
+ 			break;
++#endif
+ 		case 'O':
+ 			office_workload_flg = 1;
+ 			wl_cnt++;
+@@ -2071,14 +2093,20 @@ int main(int argc, char **argv)
+ 		}
+ 	}
+ 
++#ifdef HAVE_DEVELOPER_WORKLOAD
+ 	if (developer_workload_flg) {
+ 		workload_name = "developer";
+ 	} else if (player_workload_flg) {
++#else
++	if (player_workload_flg) {
++#endif
+ 		workload_name = "player";
+ 	} else if (reader_workload_flg) {
+ 		workload_name = "reader";
++#ifdef HAVE_GAME_WORKLOAD
+ 	} else if (game_workload_flg) {
+ 		workload_name = "game";
++#endif
+ 	} else if (office_workload_flg) {
+ 		workload_name = "office";
+ 	} else if (debug_workload_flg) {
+@@ -2210,6 +2238,7 @@ int main(int argc, char **argv)
+ 		(void)sprintf(prt_str, "%s Workload %s: cpu load %d\n",
+ 			      BLTK_WL_DEBUG, BLTK_WL_DEBUG_VERSION, proc_load);
+ 		write_to_stdout_work_out_log(prt_str);
++#ifdef HAVE_DEVELOPER_WORKLOAD
+ 	} else if (developer_workload_flg) {
+ 		if (stat_memory_flg == 0) {
+ 			stat_memory = 1;
+@@ -2223,6 +2252,7 @@ int main(int argc, char **argv)
+ 		(void)sprintf(prt_str, "%s Workload %s\n",
+ 			      BLTK_WL_DEVELOPER, BLTK_WL_DEVELOPER_VERSION);
+ 		write_to_stdout_work_out_log(prt_str);
++#endif
+ 	} else if (player_workload_flg) {
+ 		if (stat_memory_flg == 0) {
+ 			stat_memory = 1;
+@@ -2247,6 +2277,7 @@ int main(int argc, char **argv)
+ 		(void)sprintf(prt_str, "%s Workload %s\n",
+ 			      BLTK_WL_READER, BLTK_WL_READER_VERSION);
+ 		write_to_stdout_work_out_log(prt_str);
++#ifdef HAVE_GAME_WORKLOAD
+ 	} else if (game_workload_flg) {
+ 		if (stat_memory_flg == 0) {
+ 			stat_memory = 1;
+@@ -2259,6 +2290,7 @@ int main(int argc, char **argv)
+ 		(void)sprintf(prt_str, "%s Workload %s\n",
+ 			      BLTK_WL_GAME, BLTK_WL_GAME_VERSION);
+ 		write_to_stdout_work_out_log(prt_str);
++#endif
+ 	} else if (office_workload_flg) {
+ 		if (stat_memory_flg == 0) {
+ 			stat_memory = 1;
+@@ -2494,18 +2526,24 @@ int main(int argc, char **argv)
+ 
+ 	ret = 0;
+ 
++#ifdef HAVE_DEVELOPER_WORKLOAD
+ 	if (developer_workload_flg) {
+ 		procname = "developer";
+ 		ret = run_workload(workload);
+ 	} else if (player_workload_flg) {
++#else
++	if (player_workload_flg) {
++#endif
+ 		procname = "player";
+ 		ret = run_workload(workload);
+ 	} else if (reader_workload_flg) {
+ 		procname = "reader";
+ 		ret = run_workload(workload);
++#ifdef HAVE_GAME_WORKLOAD
+ 	} else if (game_workload_flg) {
+ 		procname = "game";
+ 		ret = run_workload(workload);
++#endif
+ 	} else if (office_workload_flg) {
+ 		procname = "office";
+ 		ret = run_workload(workload);

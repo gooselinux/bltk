@@ -1,0 +1,13 @@
+diff -up bltk-1.0.9/tools/analyzer/Makefile.compress bltk-1.0.9/tools/analyzer/Makefile
+--- bltk-1.0.9/tools/analyzer/Makefile.compress	2010-06-02 16:06:35.212792307 +0200
++++ bltk-1.0.9/tools/analyzer/Makefile	2010-06-02 16:06:51.819792638 +0200
+@@ -14,8 +14,7 @@ HIDERS		=
+ TARGETS		= $(BIN)/bltk_calc
+ 
+ SHFILES		= bltk_get_stat bltk_report bltk_report_table bltk_report_check \
+-			bltk_plot bltk_get_hd_rpm \
+-			bltk_report_compress bltk_report_uncompress bltk_func
++			bltk_plot bltk_get_hd_rpm bltk_func
+ SHFILES_SH	= ${SHFILES:=.sh}
+ SHTARGETS	= $(SHFILES:%=$(BIN)/%)
+ 
